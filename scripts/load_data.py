@@ -28,7 +28,6 @@ from dotenv import dotenv_values
 parser = argparse.ArgumentParser(description="Syllabye Data Loader Script")
 
 parser.add_argument("--env-file", type=str, default=".env", help="Postgres host")
-
 parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose mode")
 parser.add_argument(
     "--path",

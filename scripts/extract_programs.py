@@ -27,10 +27,10 @@ import requests
 from bs4 import BeautifulSoup
 import argparse
 
-parser = argparse.ArgumentParser(description="Syllabye Course Scraper Script")
+parser = argparse.ArgumentParser(description="Syllabye Program Scraper Script")
 
 parser.add_argument(
-    "--year", type=str, default="2025-2025", help="Website year range iteration"
+    "--year", type=str, default="2024-2025", help="Website year range iteration"
 )
 parser.add_argument(
     "--path",
