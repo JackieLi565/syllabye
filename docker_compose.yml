@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: syllabye_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DATABASE}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DATABASE}"]
+      interval: 5s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    volumes:
+      - syllabye_postgres_data:/var/lib/postgresql/data
+
+  migrate:
+    image: migrate/migrate:latest
+    container_name: syllabye_migrator
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "migrate -path=/migrations -database=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DATABASE}?sslmode=disable up",
+      ]
+
+volumes:
+  syllabye_postgres_data:

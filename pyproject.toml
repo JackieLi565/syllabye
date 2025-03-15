@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "syllabye"
+version = "0.1.0"
+description = "Scripts to scrape course related metadata"
+authors = ["Jackie Li li.jackie565@gmail.com"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+requests = "^2.32.3"
+bs4 = "^0.0.2"
+psycopg2 = "^2.9.10"
+dotenv = "^0.9.9"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
