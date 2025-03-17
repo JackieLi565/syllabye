@@ -52,7 +52,7 @@ def v_print(*stm):
 
 
 domain = "https://www.torontomu.ca"
-programs_uri = f"/calendar/{args.year}/courses/"
+programs_uri = f"/calendar/{args.year}/programs/"
 
 res = requests.get(domain + programs_uri)
 if res.status_code != 200:
