@@ -1,9 +1,18 @@
 /** @type {import('tailwindcss').Config} */
+
 export default {
     darkMode: ["class"],
     content: [],
   theme: {
+    fontFamily: {
+      sans: ['"Inter"', 'sans-serif'],
+    },
   	extend: {
+      fontFamily: {
+        inter: ['Inter'],
+        display: ['Dela Gothic One'],
+        title: ['Geist'],
+      },
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
