@@ -1,6 +1,4 @@
 package config
 
-import "os"
-
-var JwtSecret = []byte(os.Getenv("JWT_SECRET"))
-var JwtIssuer = "syllabye.ca"
+const JwtIssuer = "syllabye.ca"
+const JwtSecret = "JWT_SECRET"

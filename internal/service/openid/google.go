@@ -3,15 +3,12 @@ package openid
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
-	"net/url"
-	"strings"
+	"os"
 
-	"github.com/JackieLi565/syllabye/server/internal/config"
+	"github.com/JackieLi565/syllabye/internal/config"
+	"golang.org/x/oauth2"
 	"google.golang.org/api/idtoken"
 )
 
@@ -29,71 +26,67 @@ type googleStandardClaims struct {
 }
 
 // TODO: add logger
-type GoogleOpenIdProvider struct{}
-
-func NewGoogleOpenIdProvider() *GoogleOpenIdProvider {
-	return &GoogleOpenIdProvider{}
+type GoogleOpenIdProvider struct {
+	config *oauth2.Config
 }
 
-func (g GoogleOpenIdProvider) NewConsentUrl(payload *StateClaims) (string, error) {
+func NewGoogleOpenIdProvider() *GoogleOpenIdProvider {
+	return &GoogleOpenIdProvider{
+		config: &oauth2.Config{
+			ClientID:     os.Getenv(config.GoogleOAuthClientId),
+			ClientSecret: os.Getenv(config.GoogleOAuthClientSecret),
+			RedirectURL:  os.Getenv(config.GoogleOAuthRedirectUrl),
+			Endpoint: oauth2.Endpoint{
+				AuthURL:  "https://accounts.google.com/o/oauth2/auth",
+				TokenURL: "https://www.googleapis.com/oauth2/v4/token",
+			},
+			Scopes: []string{
+				"openid",
+				"https://www.googleapis.com/auth/userinfo.email",
+				"https://www.googleapis.com/auth/userinfo.profile",
+			},
+		},
+	}
+}
+
+func (g GoogleOpenIdProvider) AuthConsentUrl(payload *StateClaims) (string, error) {
 	stateToken, err := newStateClaims(payload)
 	if err != nil {
 		return "", err
 	}
 
-	return config.GoogleOAuthConfig.AuthCodeURL(stateToken), nil
+	return g.config.AuthCodeURL(stateToken, oauth2.SetAuthURLParam("hd", "torontomu.ca")), nil
 }
 
-func (g GoogleOpenIdProvider) VerifyTokenExchange(code string) (*TokenExchangeResponse, error) {
-	form := url.Values{}
-	form.Set("code", code)
-	form.Set("client_id", config.GoogleOAuthConfig.ClientID)
-	form.Set("client_secret", config.GoogleOAuthConfig.ClientSecret)
-	form.Set("redirect_uri", config.GoogleOAuthConfig.RedirectURL)
-	form.Set("grant_type", "authorization_code")
-
-	resp, err := http.Post(config.GoogleOAuthConfig.Endpoint.TokenURL, "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+func (g GoogleOpenIdProvider) VerifyCodeExchange(code string) (*oauth2.Token, error) {
+	token, err := g.config.Exchange(context.Background(), code)
 	if err != nil {
-		log.Println("authorization server post request failed")
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("failed to fetch token")
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
+		log.Println("code authorization failed")
 		return nil, err
 	}
 
-	var tokenResponse TokenExchangeResponse
-	if err := json.Unmarshal(body, &tokenResponse); err != nil {
-		return nil, err
-	}
-
-	return &tokenResponse, nil
+	return token, nil
 }
 
-func (g GoogleOpenIdProvider) ParseStandardClaims(tokenString string) (*StandardClaims, error) {
-	token, err := idtoken.Validate(context.Background(), tokenString, config.GoogleOAuthConfig.ClientID)
+func (g GoogleOpenIdProvider) ParseStandardClaims(tokenString string) (StandardClaims, error) {
+	var standardClaims StandardClaims
+	token, err := idtoken.Validate(context.Background(), tokenString, g.config.ClientID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify Google ID token: %w", err)
+		return standardClaims, fmt.Errorf("failed to verify Google ID token: %w", err)
 	}
 
 	claimsJson, err := json.Marshal(token.Claims)
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize Google ID claims")
+		return standardClaims, fmt.Errorf("failed to serialize Google ID claims")
 	}
 
 	var claims googleStandardClaims
 	err = json.Unmarshal(claimsJson, &claims)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse Google ID claims")
+		return standardClaims, fmt.Errorf("failed to parse Google ID claims")
 	}
 
-	return &StandardClaims{
+	return StandardClaims{
 		Name:          claims.Name,
 		Email:         claims.Email,
 		EmailVerified: claims.EmailVerified,

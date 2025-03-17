@@ -2,9 +2,11 @@ package openid
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"time"
 
-	"github.com/JackieLi565/syllabye/server/internal/config"
+	"github.com/JackieLi565/syllabye/internal/config"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -20,11 +22,11 @@ func parseStateClaims(tokenString string) (*StateClaims, error) {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
-		return config.JwtSecret, nil
+		return []byte(os.Getenv(config.JwtSecret)), nil
 	})
 
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	if !token.Valid {
@@ -48,7 +50,12 @@ func newStateClaims(payload *StateClaims) (string, error) {
 		"aud":      config.JwtIssuer,
 	})
 
-	tokenString, err := token.SignedString(config.JwtSecret)
+	jwtSecret := os.Getenv(config.JwtSecret)
+	if jwtSecret == "" {
+		log.Fatal("Invalid JWT signing secret")
+	}
+
+	tokenString, err := token.SignedString([]byte(jwtSecret))
 	if err != nil {
 		return "", err
 	}
