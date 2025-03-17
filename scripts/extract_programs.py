@@ -83,7 +83,7 @@ for row in table_rows:
         }
     )
 
-output_file = f"{args.path}/courses.json"
+output_file = f"{args.path}/programs.json"
 with open(output_file, "w") as file:
     json.dump(programs, file)
 
