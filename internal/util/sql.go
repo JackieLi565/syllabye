@@ -11,6 +11,11 @@ type SqlBuilder struct {
 	index int
 }
 
+type SqlBuilderResult struct {
+	Query string
+	Args  []interface{}
+}
+
 func NewSqlBuilder(clauses ...string) *SqlBuilder {
 	sb := &SqlBuilder{
 		index: 1,
@@ -45,10 +50,19 @@ func (s *SqlBuilder) Concat(clause string, values ...interface{}) *SqlBuilder {
 	return s
 }
 
+func (s *SqlBuilder) Result() SqlBuilderResult {
+	return SqlBuilderResult{
+		Query: strings.TrimSpace(s.query.String()),
+		Args:  s.args,
+	}
+}
+
+// Deprecated: Use Result instead.
 func (s *SqlBuilder) GetArgs() []interface{} {
 	return s.args
 }
 
+// Deprecated: Use Result instead.
 func (s *SqlBuilder) Build() string {
 	return strings.TrimSpace(s.query.String())
 }

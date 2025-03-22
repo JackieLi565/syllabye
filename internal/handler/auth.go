@@ -23,7 +23,7 @@ type AuthHandler struct {
 
 const defaultRedirect = "/home"
 
-func (ah AuthHandler) ConsentUrlHandler(w http.ResponseWriter, r *http.Request) {
+func (ah AuthHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request) {
 	redirectUrl := r.URL.Query().Get("redirect")
 	parsedRedirectUrl, err := url.Parse(redirectUrl)
 	if err != nil {
@@ -57,7 +57,7 @@ func (ah AuthHandler) ConsentUrlHandler(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(model.ErrorMessage{
+		json.NewEncoder(w).Encode(model.MessageResponse{
 			Message: "Unable to continue to OpenID provider.",
 		})
 		return
@@ -66,7 +66,7 @@ func (ah AuthHandler) ConsentUrlHandler(w http.ResponseWriter, r *http.Request) 
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
-func (ah AuthHandler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
+func (ah AuthHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	code := query.Get("code")
 	state := query.Get("state")
@@ -76,7 +76,7 @@ func (ah AuthHandler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("failed to parse state claim: \n%w", err)
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(model.ErrorMessage{
+		json.NewEncoder(w).Encode(model.MessageResponse{
 			Message: "Login state flow no longer valid.",
 		})
 		return
@@ -87,7 +87,7 @@ func (ah AuthHandler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("failed to exchange code for tokens: \n%w", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(model.ErrorMessage{
+		json.NewEncoder(w).Encode(model.MessageResponse{
 			Message: "An error occurred while exchanging for authorization tokens.",
 		})
 		return
@@ -98,7 +98,7 @@ func (ah AuthHandler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		log.Println("failed to type assert id token: \n%w", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(model.ErrorMessage{
+		json.NewEncoder(w).Encode(model.MessageResponse{
 			Message: "Unable to validate ID token.",
 		})
 		return
@@ -110,7 +110,7 @@ func (ah AuthHandler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	if len(splitEmail) != 2 {
 		log.Printf("unknown email format received from open id %s\n", standardClaims.Email)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(model.ErrorMessage{
+		json.NewEncoder(w).Encode(model.MessageResponse{
 			Message: "Unable to validate email.",
 		})
 		return
@@ -122,11 +122,11 @@ func (ah AuthHandler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Login or Register the user
-	user, err := ah.UserRepo.LoginOrRegisterUser(standardClaims)
+	userId, err := ah.UserRepo.LoginOrRegisterUser(standardClaims)
 	if err != nil {
 		log.Println("failed to login or register user: \n%w", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(model.ErrorMessage{
+		json.NewEncoder(w).Encode(model.MessageResponse{
 			Message: "Unable to login or register user.",
 		})
 		return
@@ -134,11 +134,11 @@ func (ah AuthHandler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: current implementation of a session token lasts 30 days. Implement refresh token in the future
 	sessionExp := time.Now().Add(720 * time.Hour)
-	session, err := ah.SessionRepo.CreateSession(user.Id, sessionExp)
+	sessionId, err := ah.SessionRepo.CreateSession(userId, sessionExp)
 	if err != nil {
 		log.Println("failed to create session for user: \n%w", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(model.ErrorMessage{
+		json.NewEncoder(w).Encode(model.MessageResponse{
 			Message: "Unable to create session for user.",
 		})
 		return
@@ -146,7 +146,7 @@ func (ah AuthHandler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println(stateClaims.Redirect)
 	http.SetCookie(w, &http.Cookie{
 		Name:     config.SessionCookie,
-		Value:    session.Id,
+		Value:    sessionId,
 		Path:     "/",
 		Expires:  sessionExp,
 		HttpOnly: true,
@@ -167,7 +167,7 @@ func (ah AuthHandler) SessionMiddleware(next http.Handler) http.Handler {
 			session, err := ah.SessionRepo.FindSession(sessionCookie.Value)
 			if err != nil {
 				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(model.ErrorMessage{
+				json.NewEncoder(w).Encode(model.MessageResponse{
 					Message: "Session not found.",
 				})
 				return

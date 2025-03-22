@@ -3,27 +3,25 @@ package repository
 import "strconv"
 
 type Paginate struct {
-	Page string
-	Size string
-
-	page uint
-	size uint
+	Page uint
+	Size uint
 }
 
 // Default page 1
 // Default page size 20
-func (p *Paginate) parsePaginate() {
-	page, err := strconv.ParseUint(p.Page, 10, 32)
-	if err != nil {
-		p.page = 1
-	} else {
-		p.page = uint(page)
+func NewPaginate(pageStr, sizeStr string) Paginate {
+	page, err := strconv.ParseUint(pageStr, 10, 32)
+	if err != nil || page == 0 {
+		page = 1
 	}
 
-	size, err := strconv.ParseUint(p.Size, 10, 32)
-	if err != nil {
-		p.size = 25
-	} else {
-		p.size = uint(size)
+	size, err := strconv.ParseUint(sizeStr, 10, 32)
+	if err != nil || size == 0 {
+		size = 25
+	}
+
+	return Paginate{
+		Page: uint(page),
+		Size: uint(size),
 	}
 }

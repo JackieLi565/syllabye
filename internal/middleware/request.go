@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// TODO: remove and init on global
 func RequestIdMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestId := uuid.New().String()

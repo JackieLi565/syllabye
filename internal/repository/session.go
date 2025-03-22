@@ -13,42 +13,39 @@ import (
 )
 
 type SessionRepository interface {
-	CreateSession(userId string, exp time.Time) (model.Session, error)
-	FindSession(sessionId string) (model.Session, error)
+	CreateSession(userId string, exp time.Time) (string, error)
+	FindSession(sessionId string) (model.ISession, error)
 }
 
 type PgSessionRepository struct {
 	DB *database.DB
 }
 
-func (s PgSessionRepository) CreateSession(userId string, exp time.Time) (model.Session, error) {
-	var session model.Session
+func (s PgSessionRepository) CreateSession(userId string, exp time.Time) (string, error) {
+	var sessionId string
 	var userUuid pgtype.UUID
 	err := userUuid.Scan(userId)
 	if err != nil {
-		return session, fmt.Errorf("invalid user id")
+		return sessionId, fmt.Errorf("invalid user id")
 	}
 
 	qb := util.NewSqlBuilder("insert into sessions (user_id, date_expires)")
 	qb = qb.Concat("values ($%d, $%d)", userUuid, exp)
-	qb = qb.Concat("returning id, user_id, date_added, date_expires;")
+	qb = qb.Concat("returning id")
 
 	err = s.DB.Pool.QueryRow(context.TODO(), qb.Build(), qb.GetArgs()...).Scan(
-		&session.Id,
-		&session.UserId,
-		&session.DateAdded,
-		&session.DateExpires,
+		&sessionId,
 	)
 	if err != nil {
 		log.Println(err)
-		return session, fmt.Errorf("failed to create session")
+		return sessionId, fmt.Errorf("failed to create session")
 	}
 
-	return session, nil
+	return sessionId, nil
 }
 
-func (s PgSessionRepository) FindSession(sessionId string) (model.Session, error) {
-	var session model.Session
+func (s PgSessionRepository) FindSession(sessionId string) (model.ISession, error) {
+	var session model.ISession
 	var sessionUuid pgtype.UUID
 	err := sessionUuid.Scan(sessionId)
 	if err != nil {

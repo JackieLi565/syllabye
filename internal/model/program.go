@@ -6,17 +6,32 @@ import (
 )
 
 type Program struct {
+	Id        string `json:"id"`
+	FacultyId string `json:"faculty"`
+	Name      string `json:"name"`
+	Uri       string `json:"uri"`
+}
+
+type IProgram struct {
 	Id        string
 	FacultyId string
-	Faculty   *Faculty
 	Name      string
-	URI       string
+	Uri       string
 	DateAdded time.Time
 }
 
-type ProgramResponse struct {
-	Id      string          `json:"id"`
-	Faculty json.RawMessage `json:"faculty"`
-	Name    string          `json:"name"`
-	Uri     string          `json:"uri"`
+func NewJsonProgram(program IProgram) []byte {
+	json, _ := json.Marshal(Program{
+		Id:        program.Id,
+		FacultyId: program.FacultyId,
+		Name:      program.Name,
+		Uri:       program.Uri,
+	})
+
+	return json
+}
+
+type ProgramFilters struct {
+	FacultyId string
+	Name      string
 }

@@ -12,7 +12,7 @@ type Router struct {
 func (ro Router) SetupRoutes(r chi.Router) {
 	r.Route("/providers/google", func(r chi.Router) {
 		// All redirect routes
-		r.Get("/", ro.Auth.ConsentUrlHandler)
-		r.Get("/callback", ro.Auth.CallbackHandler)
+		r.Get("/", ro.Auth.ConsentUrlRedirect)
+		r.Get("/callback", ro.Auth.ProviderCallback)
 	})
 }
