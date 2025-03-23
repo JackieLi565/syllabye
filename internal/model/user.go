@@ -2,7 +2,6 @@ package model
 
 import (
 	"database/sql"
-	"encoding/json"
 	"time"
 )
 
@@ -31,26 +30,16 @@ type IUser struct {
 	DateModified time.Time
 }
 
-func NewJsonUser(user IUser) []byte {
-	jsonUser := User{
-		Id:        user.Id,
-		ProgramId: user.ProgramId.String,
-		FullName:  user.FullName,
-		Nickname:  user.Nickname.String,
-		Gender:    user.Gender.String,
-		Email:     user.Gender.String,
-		Picture:   user.Picture.String,
+func (u IUser) ToUser() User {
+	return User{
+		Id:        u.Id,
+		ProgramId: u.ProgramId.String,
+		FullName:  u.FullName,
+		Nickname:  u.Nickname.String,
+		Gender:    u.Gender.String,
+		Email:     u.Gender.String,
+		Picture:   u.Picture.String,
 	}
-
-	if user.CurrentYear.Valid {
-		jsonUser.CurrentYear = &user.CurrentYear.Int16
-	} else {
-		jsonUser.CurrentYear = nil
-	}
-
-	json, _ := json.Marshal(user)
-
-	return json
 }
 
 type UserSignUpRequest struct {

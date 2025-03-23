@@ -2,7 +2,6 @@ package model
 
 import (
 	"database/sql"
-	"encoding/json"
 	"time"
 )
 
@@ -25,17 +24,15 @@ type ICourse struct {
 	DateAdded   time.Time
 }
 
-func NewJsonCourse(course ICourse) []byte {
-	json, _ := json.Marshal(Course{
-		Id:          course.Id,
-		CategoryId:  course.CategoryId,
-		Title:       course.Title,
-		Description: course.Description.String,
-		Uri:         course.Uri,
-		Course:      course.Course,
-	})
-
-	return json
+func (c ICourse) ToCourse() Course {
+	return Course{
+		Id:          c.Id,
+		CategoryId:  c.CategoryId,
+		Title:       c.Title,
+		Description: c.Description.String,
+		Uri:         c.Uri,
+		Course:      c.Course,
+	}
 }
 
 type CourseFilters struct {

@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -20,15 +19,13 @@ type IProgram struct {
 	DateAdded time.Time
 }
 
-func NewJsonProgram(program IProgram) []byte {
-	json, _ := json.Marshal(Program{
-		Id:        program.Id,
-		FacultyId: program.FacultyId,
-		Name:      program.Name,
-		Uri:       program.Uri,
-	})
-
-	return json
+func (p IProgram) ToProgram() Program {
+	return Program{
+		Id:        p.Id,
+		FacultyId: p.FacultyId,
+		Name:      p.Name,
+		Uri:       p.Uri,
+	}
 }
 
 type ProgramFilters struct {

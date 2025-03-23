@@ -16,6 +16,13 @@ type IFaculty struct {
 	DateAdded time.Time
 }
 
+func (f IFaculty) ToFaculty() Faculty {
+	return Faculty{
+		Id:   f.Id,
+		Name: f.Name,
+	}
+}
+
 func NewJsonFaculty(faculty IFaculty) []byte {
 	json, _ := json.Marshal(Faculty{
 		Id:   faculty.Id,

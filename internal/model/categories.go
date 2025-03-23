@@ -1,7 +1,5 @@
 package model
 
-import "encoding/json"
-
 type CourseCategory struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`
@@ -13,11 +11,9 @@ type ICourseCategory struct {
 	DateAdded string
 }
 
-func NewJsonCourseCategory(category ICourseCategory) []byte {
-	json, _ := json.Marshal(CourseCategory{
-		Id:   category.Id,
-		Name: category.Name,
-	})
-
-	return json
+func (c ICourseCategory) ToCourseCategory() CourseCategory {
+	return CourseCategory{
+		Id:   c.Id,
+		Name: c.Name,
+	}
 }

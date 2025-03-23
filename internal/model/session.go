@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -17,11 +16,9 @@ type ISession struct {
 	DateExpires time.Time
 }
 
-func NewJsonSession(session ISession) []byte {
-	json, _ := json.Marshal(Session{
-		UserId:  session.UserId,
-		Expired: session.DateExpires.Before(time.Now()),
-	})
-
-	return json
+func (s ISession) ToSession() Session {
+	return Session{
+		UserId:  s.UserId,
+		Expired: s.DateExpires.Before(time.Now()),
+	}
 }
