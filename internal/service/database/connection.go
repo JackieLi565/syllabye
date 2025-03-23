@@ -23,7 +23,12 @@ func NewDB() (*DB, error) {
 		return nil, err
 	}
 
-	log.Println("database connection pool created")
+	err = pool.Ping(context.TODO())
+	if err != nil {
+		log.Fatal("failed to create a database connection pool")
+	} else {
+		log.Println("database connection pool created")
+	}
 	return &DB{Pool: pool}, nil
 }
 

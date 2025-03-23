@@ -2,54 +2,67 @@ package repository
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"errors"
 	"time"
 
 	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/service/database"
+	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/util"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type SessionRepository interface {
 	CreateSession(userId string, exp time.Time) (string, error)
-	FindSession(sessionId string) (model.ISession, error)
+	GetSession(sessionId string) (model.ISession, error)
 }
 
-type PgSessionRepository struct {
-	DB *database.DB
+type pgSessionRepository struct {
+	db  *database.DB
+	log logger.Logger
 }
 
-func (s PgSessionRepository) CreateSession(userId string, exp time.Time) (string, error) {
+func NewPgSessionRepository(db *database.DB, log logger.Logger) *pgSessionRepository {
+	return &pgSessionRepository{
+		db:  db,
+		log: log,
+	}
+}
+
+func (s *pgSessionRepository) CreateSession(userId string, exp time.Time) (string, error) {
 	var sessionId string
 	var userUuid pgtype.UUID
 	err := userUuid.Scan(userId)
 	if err != nil {
-		return sessionId, fmt.Errorf("invalid user id")
+		return sessionId, util.ErrMalformed
 	}
 
 	qb := util.NewSqlBuilder("insert into sessions (user_id, date_expires)")
 	qb = qb.Concat("values ($%d, $%d)", userUuid, exp)
 	qb = qb.Concat("returning id")
 
-	err = s.DB.Pool.QueryRow(context.TODO(), qb.Build(), qb.GetArgs()...).Scan(
+	err = s.db.Pool.QueryRow(context.TODO(), qb.Build(), qb.GetArgs()...).Scan(
 		&sessionId,
 	)
 	if err != nil {
-		log.Println(err)
-		return sessionId, fmt.Errorf("failed to create session")
+		if database.IsErrConflict(err) {
+			return sessionId, util.ErrConflict
+		}
+
+		s.log.Error("failed to create session", logger.Err(err))
+		return sessionId, util.ErrInternal
 	}
 
 	return sessionId, nil
 }
 
-func (s PgSessionRepository) FindSession(sessionId string) (model.ISession, error) {
+func (s *pgSessionRepository) GetSession(sessionId string) (model.ISession, error) {
 	var session model.ISession
 	var sessionUuid pgtype.UUID
 	err := sessionUuid.Scan(sessionId)
 	if err != nil {
-		return session, fmt.Errorf("invalid user id")
+		return session, util.ErrMalformed
 	}
 
 	qb := util.NewSqlBuilder(
@@ -58,15 +71,19 @@ func (s PgSessionRepository) FindSession(sessionId string) (model.ISession, erro
 	)
 	qb = qb.Concat("where id = $%d", sessionUuid)
 
-	err = s.DB.Pool.QueryRow(context.TODO(), qb.Build(), qb.GetArgs()...).Scan(
+	err = s.db.Pool.QueryRow(context.TODO(), qb.Build(), qb.GetArgs()...).Scan(
 		&session.Id,
 		&session.UserId,
 		&session.DateAdded,
 		&session.DateExpires,
 	)
 	if err != nil {
-		log.Println(err)
-		return session, fmt.Errorf("failed to query session")
+		if errors.Is(err, pgx.ErrNoRows) {
+			return session, util.ErrNotFound
+		}
+
+		s.log.Error("get session query error", logger.Err(err))
+		return session, util.ErrInternal
 	}
 
 	return session, nil

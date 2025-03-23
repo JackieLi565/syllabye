@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -9,12 +10,13 @@ import (
 	"github.com/JackieLi565/syllabye/internal/service/database"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/util"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type CourseRepository interface {
 	GetCourse(ctx context.Context, courseId string) (model.ICourse, error)
-	ListCourses(ctx context.Context, filters model.CourseFilters, paginate Paginate) ([]model.ICourse, error)
+	ListCourses(ctx context.Context, filters model.CourseFilters, paginate util.Paginate) ([]model.ICourse, error)
 }
 
 type pgCourseRepository struct {
@@ -42,14 +44,17 @@ func (c *pgCourseRepository) GetCourse(ctx context.Context, courseId string) (mo
 		&course.Course, &course.DateAdded,
 	)
 	if err != nil {
-		c.log.Error("get course query error")
-		return course, fmt.Errorf("failed to get course %d", courseId)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return course, util.ErrNotFound
+		}
+		c.log.Error("get course query error", logger.Err(err))
+		return course, util.ErrInternal
 	}
 
 	return course, nil
 }
 
-func (c *pgCourseRepository) ListCourses(ctx context.Context, filters model.CourseFilters, paginate Paginate) ([]model.ICourse, error) {
+func (c *pgCourseRepository) ListCourses(ctx context.Context, filters model.CourseFilters, paginate util.Paginate) ([]model.ICourse, error) {
 	var courses []model.ICourse
 
 	result, err := c.listCoursesQuery(filters, paginate)
@@ -59,8 +64,11 @@ func (c *pgCourseRepository) ListCourses(ctx context.Context, filters model.Cour
 
 	rows, err := c.db.Pool.Query(context.TODO(), result.Query, result.Args...)
 	if err != nil {
-		c.log.Error("list course query error")
-		return courses, fmt.Errorf("failed to list courses")
+		if errors.Is(err, pgx.ErrNoRows) {
+			return courses, nil
+		}
+		c.log.Error("list course query error", logger.Err(err))
+		return courses, util.ErrInternal
 	}
 
 	for rows.Next() {
@@ -70,10 +78,9 @@ func (c *pgCourseRepository) ListCourses(ctx context.Context, filters model.Cour
 			&course.Course, &course.DateAdded,
 		)
 		if err != nil {
-			c.log.Error("scan course error")
-			return courses, fmt.Errorf("failed to list course categories")
+			c.log.Error("scan course error", logger.Err(err))
+			return courses, util.ErrInternal
 		}
-
 		courses = append(courses, course)
 	}
 
@@ -96,7 +103,7 @@ func (c *pgCourseRepository) getCourseQuery(courseId string) (util.SqlBuilderRes
 	return qb.Result(), nil
 }
 
-func (c *pgCourseRepository) listCoursesQuery(filters model.CourseFilters, paginate Paginate) (util.SqlBuilderResult, error) {
+func (c *pgCourseRepository) listCoursesQuery(filters model.CourseFilters, paginate util.Paginate) (util.SqlBuilderResult, error) {
 	qb := util.NewSqlBuilder(
 		"select id, category_id, title, description, uri, course, date_added",
 		"from courses",
@@ -105,7 +112,7 @@ func (c *pgCourseRepository) listCoursesQuery(filters model.CourseFilters, pagin
 	args := []any{}
 
 	if filters.Name != "" {
-		queryFilters = append(queryFilters, "name ilike $%d")
+		queryFilters = append(queryFilters, "title ilike $%d")
 		args = append(args, "%"+filters.Name+"%")
 	}
 
@@ -128,6 +135,10 @@ func (c *pgCourseRepository) listCoursesQuery(filters model.CourseFilters, pagin
 		orClause := "(" + strings.Join(queryFilters, " or ") + ")"
 		qb = qb.Concat("where "+orClause, args...)
 	}
+
+	qb.Concat("limit $%d", paginate.Size)
+	offset := (paginate.Page - 1) * paginate.Size
+	qb.Concat("offset $%d", offset)
 
 	return qb.Result(), nil
 }

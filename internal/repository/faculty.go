@@ -2,12 +2,14 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/service/database"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/util"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -38,7 +40,11 @@ func (f *pgFacultyRepository) GetFaculty(ctx context.Context, facultyId string) 
 		&faculty.Id, &faculty.Name, &faculty.DateAdded,
 	)
 	if err != nil {
-		f.log.Error("get faculty query error")
+		if errors.Is(err, pgx.ErrNoRows) {
+			return faculty, util.ErrNotFound
+		}
+
+		f.log.Error("get faculty query error", logger.Err(err))
 		return faculty, fmt.Errorf("failed to get faculty %s", facultyId)
 	}
 
@@ -52,7 +58,11 @@ func (f *pgFacultyRepository) ListFaculties(ctx context.Context, nameFilter stri
 
 	rows, err := f.db.Pool.Query(context.TODO(), result.Query, result.Args...)
 	if err != nil {
-		f.log.Error("list faculty query error")
+		if errors.Is(err, pgx.ErrNoRows) {
+			return faculties, nil
+		}
+
+		f.log.Error("list faculty query error", logger.Err(err))
 		return faculties, fmt.Errorf("failed to list faculties")
 	}
 
@@ -60,7 +70,7 @@ func (f *pgFacultyRepository) ListFaculties(ctx context.Context, nameFilter stri
 		faculty := model.IFaculty{}
 		err := rows.Scan(&faculty.Id, &faculty.Name, &faculty.DateAdded)
 		if err != nil {
-			f.log.Error("scan faculty query error")
+			f.log.Error("scan faculty query error", logger.Err(err))
 			return faculties, fmt.Errorf("failed to list faculties")
 		}
 

@@ -2,12 +2,12 @@ package repository
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"errors"
 	"strings"
 
 	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/service/database"
+	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/service/openid"
 	"github.com/JackieLi565/syllabye/internal/util"
 	"github.com/jackc/pgx/v5"
@@ -19,39 +19,44 @@ type UserRepository interface {
 	CompleteUserSignUp(userId string, payload model.UserSignUpRequest) error
 }
 
-type PgUserRepository struct {
-	DB *database.DB
+type pgUserRepository struct {
+	log logger.Logger
+	db  *database.DB
 }
 
-func (u *PgUserRepository) LoginOrRegisterUser(openId openid.StandardClaims) (string, error) {
+func NewPgUserRepository(db *database.DB, log logger.Logger) *pgUserRepository {
+	return &pgUserRepository{
+		db:  db,
+		log: log,
+	}
+}
+
+func (u *pgUserRepository) LoginOrRegisterUser(openId openid.StandardClaims) (string, error) {
 	var userId string
 
-	err := u.DB.RunTransaction(context.TODO(), func(tx pgx.Tx) error {
-		userQb := util.NewSqlBuilder(
-			"select id",
-			"from users u",
-		)
-		userQb = userQb.Concat("where lower(email) = $%d", strings.ToLower(openId.Email))
+	err := u.db.RunTransaction(context.TODO(), func(tx pgx.Tx) error {
+		res := u.getUserByEmailQuery(openId.Email)
 
-		err := tx.QueryRow(context.TODO(), userQb.Build(), userQb.GetArgs()...).Scan(
+		err := tx.QueryRow(context.TODO(), res.Query, res.Args...).Scan(
 			&userId,
 		)
 		if err != nil {
-			if err == pgx.ErrNoRows {
-				userQb := util.NewSqlBuilder("insert into users (full_name, email, picture, is_active)")
-				userQb = userQb.Concat("values ($1, $2, $3, $4)", openId.Name, openId.Email, openId.Picture, true)
-				userQb = userQb.Concat("returning id")
-
-				err := tx.QueryRow(context.TODO(), userQb.Build(), userQb.GetArgs()...).Scan(&userId)
+			if errors.Is(err, pgx.ErrNoRows) {
+				res := u.registerUserQuery(openId)
+				err := tx.QueryRow(context.TODO(), res.Query, res.Args...).Scan(&userId)
 				if err != nil {
-					log.Println(err)
-					return fmt.Errorf("failed to create new user")
+					if database.IsErrConflict(err) {
+						return util.ErrConflict
+					}
+
+					u.log.Error("insert user query failed", logger.Err(err))
+					return util.ErrInternal
 				}
 
-				log.Println("User not found, a new user was created")
+				u.log.Info("insert user query failed", logger.Err(err))
 			} else {
-				log.Println(err)
-				return fmt.Errorf("failed to query for user")
+				u.log.Error("user query failed", logger.Err(err))
+				return util.ErrInternal
 			}
 		}
 
@@ -61,19 +66,51 @@ func (u *PgUserRepository) LoginOrRegisterUser(openId openid.StandardClaims) (st
 	return userId, err
 }
 
-func (u *PgUserRepository) CompleteUserSignUp(userId string, payload model.UserSignUpRequest) error {
+func (u *pgUserRepository) CompleteUserSignUp(userId string, payload model.UserSignUpRequest) error {
+	res, err := u.updateUserSignUpQuery(userId, payload)
+	_, err = u.db.Pool.Exec(context.TODO(), res.Query, res.Args...)
+	if err != nil {
+		if database.IsErrConflict(err) {
+			return util.ErrConflict
+		}
+
+		u.log.Error("update user query failed", logger.Err(err))
+		return util.ErrInternal
+	}
+
+	return nil
+}
+
+func (u *pgUserRepository) getUserByEmailQuery(email string) util.SqlBuilderResult {
+	qb := util.NewSqlBuilder(
+		"select id",
+		"from users u",
+	)
+	qb = qb.Concat("where lower(email) = $%d", strings.ToLower(email))
+
+	return qb.Result()
+}
+
+func (u *pgUserRepository) registerUserQuery(openId openid.StandardClaims) util.SqlBuilderResult {
+	qb := util.NewSqlBuilder("insert into users (full_name, email, picture, is_active)")
+	qb = qb.Concat("values ($1, $2, $3, $4)", openId.Name, openId.Email, openId.Picture, true)
+	qb = qb.Concat("returning id")
+
+	return qb.Result()
+}
+
+func (u *pgUserRepository) updateUserSignUpQuery(userId string, payload model.UserSignUpRequest) (util.SqlBuilderResult, error) {
 	var userUuid pgtype.UUID
 	err := userUuid.Scan(userId)
 	if err != nil {
-		return fmt.Errorf("Invalid user ID value.")
+		return util.SqlBuilderResult{}, util.ErrMalformed
 	}
 
 	var programUuid pgtype.UUID
 	err = programUuid.Scan(payload.ProgramId)
 
-	err = u.checkGender(payload.Gender)
-	if err != nil {
-		return err
+	if payload.Gender != "Male" || payload.Gender != "Female" || payload.Gender != "Other" {
+		return util.SqlBuilderResult{}, util.ErrMalformed
 	}
 
 	qb := util.NewSqlBuilder("update users")
@@ -86,19 +123,5 @@ func (u *PgUserRepository) CompleteUserSignUp(userId string, payload model.UserS
 	)
 	qb = qb.Concat("where id = $%d", userId)
 
-	_, err = u.DB.Pool.Exec(context.TODO(), qb.Build(), qb.GetArgs()...)
-	if err != nil {
-		log.Println(err)
-		return fmt.Errorf("Unable to complete user sign up.")
-	}
-
-	return nil
-}
-
-func (u *PgUserRepository) checkGender(gender string) error {
-	if gender != "Male" || gender != "Female" || gender != "Other" {
-		return fmt.Errorf("Invalid gender value.")
-	}
-
-	return nil
+	return qb.Result(), nil
 }

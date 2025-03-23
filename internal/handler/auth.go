@@ -15,15 +15,23 @@ import (
 	"github.com/JackieLi565/syllabye/internal/service/openid"
 )
 
-type AuthHandler struct {
-	OpenIdProvider openid.OpenIdProvider
-	UserRepo       repository.UserRepository
-	SessionRepo    repository.SessionRepository
-}
-
 const defaultRedirect = "/home"
 
-func (ah AuthHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request) {
+type authHandler struct {
+	openIdProvider openid.OpenIdProvider
+	userRepo       repository.UserRepository
+	sessionRepo    repository.SessionRepository
+}
+
+func NewAuthHandler(user repository.UserRepository, session repository.SessionRepository, openId openid.OpenIdProvider) *authHandler {
+	return &authHandler{
+		openIdProvider: openId,
+		userRepo:       user,
+		sessionRepo:    session,
+	}
+}
+
+func (ah *authHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request) {
 	redirectUrl := r.URL.Query().Get("redirect")
 	parsedRedirectUrl, err := url.Parse(redirectUrl)
 	if err != nil {
@@ -38,7 +46,7 @@ func (ah AuthHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request)
 
 	sessionCookie, err := r.Cookie(config.SessionCookie)
 	if err == nil {
-		session, err := ah.SessionRepo.FindSession(sessionCookie.Value)
+		session, err := ah.sessionRepo.GetSession(sessionCookie.Value)
 		if err == nil {
 			if session.DateExpires.After(time.Now()) {
 				if redirectUrl == "" {
@@ -51,7 +59,7 @@ func (ah AuthHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	url, err := ah.OpenIdProvider.AuthConsentUrl(&openid.StateClaims{
+	url, err := ah.openIdProvider.AuthConsentUrl(&openid.StateClaims{
 		Redirect: redirectUrl,
 	})
 	if err != nil {
@@ -66,13 +74,13 @@ func (ah AuthHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request)
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
-func (ah AuthHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) {
+func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	code := query.Get("code")
 	state := query.Get("state")
 
 	// Validate state token
-	stateClaims, err := ah.OpenIdProvider.ParseStateClaims(state)
+	stateClaims, err := ah.openIdProvider.ParseStateClaims(state)
 	if err != nil {
 		log.Println("failed to parse state claim: \n%w", err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -83,7 +91,7 @@ func (ah AuthHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate exchange code
-	tokens, err := ah.OpenIdProvider.VerifyCodeExchange(code)
+	tokens, err := ah.openIdProvider.VerifyCodeExchange(code)
 	if err != nil {
 		log.Println("failed to exchange code for tokens: \n%w", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -105,7 +113,7 @@ func (ah AuthHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate OpenID token and email domain
-	standardClaims, err := ah.OpenIdProvider.ParseStandardClaims(idToken)
+	standardClaims, err := ah.openIdProvider.ParseStandardClaims(idToken)
 	splitEmail := strings.Split(standardClaims.Email, "@")
 	if len(splitEmail) != 2 {
 		log.Printf("unknown email format received from open id %s\n", standardClaims.Email)
@@ -122,7 +130,7 @@ func (ah AuthHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Login or Register the user
-	userId, err := ah.UserRepo.LoginOrRegisterUser(standardClaims)
+	userId, err := ah.userRepo.LoginOrRegisterUser(standardClaims)
 	if err != nil {
 		log.Println("failed to login or register user: \n%w", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -134,7 +142,7 @@ func (ah AuthHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: current implementation of a session token lasts 30 days. Implement refresh token in the future
 	sessionExp := time.Now().Add(720 * time.Hour)
-	sessionId, err := ah.SessionRepo.CreateSession(userId, sessionExp)
+	sessionId, err := ah.sessionRepo.CreateSession(userId, sessionExp)
 	if err != nil {
 		log.Println("failed to create session for user: \n%w", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -160,11 +168,11 @@ func (ah AuthHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ah AuthHandler) SessionMiddleware(next http.Handler) http.Handler {
+func (ah *authHandler) SessionMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sessionCookie, err := r.Cookie(config.SessionCookie)
 		if err == nil {
-			session, err := ah.SessionRepo.FindSession(sessionCookie.Value)
+			session, err := ah.sessionRepo.GetSession(sessionCookie.Value)
 			if err != nil {
 				w.WriteHeader(http.StatusUnauthorized)
 				json.NewEncoder(w).Encode(model.MessageResponse{
