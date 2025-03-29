@@ -2,7 +2,27 @@
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: true },
-  modules: ['@nuxtjs/tailwindcss', 'shadcn-nuxt'],
+  modules: ['@nuxtjs/tailwindcss', 'shadcn-nuxt', '@nuxtjs/color-mode', '@nuxt/fonts'],
+  fonts: {
+    defaults: {
+      weights: [400],
+      styles: ['normal', 'italic'],
+      subsets: [
+        'cyrillic-ext',
+        'cyrillic',
+        'greek-ext',
+        'greek',
+        'vietnamese',
+        'latin-ext',
+        'latin',
+      ]
+    },
+    families: [
+      { name: 'Dela Gothic One', provider: 'google' },
+      { name: 'Inter', provider: 'google' },
+      { name: 'Geist', provider: 'google' }
+    ]
+  }, 
   shadcn: {
     /**
      * Prefix for all the imported component
@@ -13,6 +33,11 @@ export default defineNuxtConfig({
      * @default "./components/ui"
      */
     componentDir: './components/ui'
+  },
+  colorMode: {
+    preference: 'system', // Default theme
+    dataValue: 'theme', // Adds `data-theme="dark"` to <html>
+    classSuffix: '',
   },
   app: {
     head: {
