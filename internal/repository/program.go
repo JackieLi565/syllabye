@@ -20,11 +20,11 @@ type ProgramRepository interface {
 }
 
 type pgProgramRepository struct {
-	db  *database.DB
+	db  *database.PostgresDb
 	log logger.Logger
 }
 
-func NewPgProgramRepository(db *database.DB, log logger.Logger) *pgProgramRepository {
+func NewPgProgramRepository(db *database.PostgresDb, log logger.Logger) *pgProgramRepository {
 	return &pgProgramRepository{
 		db:  db,
 		log: log,

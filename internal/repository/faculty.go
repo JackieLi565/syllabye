@@ -20,11 +20,11 @@ type FacultyRepository interface {
 }
 
 type pgFacultyRepository struct {
-	db  *database.DB
+	db  *database.PostgresDb
 	log logger.Logger
 }
 
-func NewPgFacultyRepository(db *database.DB, log logger.Logger) *pgFacultyRepository {
+func NewPgFacultyRepository(db *database.PostgresDb, log logger.Logger) *pgFacultyRepository {
 	return &pgFacultyRepository{
 		db:  db,
 		log: log,

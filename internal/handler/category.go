@@ -36,7 +36,7 @@ func (p *courseCategoryHandler) GetCourseCategory(w http.ResponseWriter, r *http
 		return
 	}
 
-	json.NewEncoder(w).Encode(iCourseCategory.ToCourseCategory())
+	json.NewEncoder(w).Encode(model.ToCourseCategory(iCourseCategory))
 }
 
 func (p *courseCategoryHandler) ListCourseCategories(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +54,7 @@ func (p *courseCategoryHandler) ListCourseCategories(w http.ResponseWriter, r *h
 
 	courseCategories := make([]model.CourseCategory, 0, len(iCourseCategories))
 	for _, iCourseCategory := range iCourseCategories {
-		courseCategories = append(courseCategories, iCourseCategory.ToCourseCategory())
+		courseCategories = append(courseCategories, model.ToCourseCategory(iCourseCategory))
 	}
 
 	json.NewEncoder(w).Encode(courseCategories)

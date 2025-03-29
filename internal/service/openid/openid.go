@@ -13,6 +13,7 @@ type StandardClaims struct {
 
 type OpenIdProvider interface {
 	AuthConsentUrl(payload *StateClaims) (string, error)
+	GetOpenIdToken(code string) (string, error)
 	VerifyCodeExchange(code string) (*oauth2.Token, error)
 	ParseStandardClaims(tokenString string) (StandardClaims, error)
 	ParseStateClaims(tokenString string) (*StateClaims, error)

@@ -36,7 +36,7 @@ func (p *programHandler) GetProgram(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(iProgram.ToProgram())
+	json.NewEncoder(w).Encode(model.ToProgram(iProgram))
 }
 
 func (p *programHandler) ListPrograms(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +57,7 @@ func (p *programHandler) ListPrograms(w http.ResponseWriter, r *http.Request) {
 
 	programs := make([]model.Program, 0, len(iPrograms))
 	for _, iProgram := range iPrograms {
-		programs = append(programs, iProgram.ToProgram())
+		programs = append(programs, model.ToProgram(iProgram))
 	}
 
 	json.NewEncoder(w).Encode(programs)

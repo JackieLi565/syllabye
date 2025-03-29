@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -16,19 +15,9 @@ type IFaculty struct {
 	DateAdded time.Time
 }
 
-func (f IFaculty) ToFaculty() Faculty {
+func ToFaculty(f IFaculty) Faculty {
 	return Faculty{
 		Id:   f.Id,
 		Name: f.Name,
 	}
-}
-
-func NewJsonFaculty(faculty IFaculty) []byte {
-	json, _ := json.Marshal(Faculty{
-		Id:   faculty.Id,
-		Name: faculty.Name,
-	})
-	// error can never occur as faculty is an internal model from the database.
-
-	return json
 }

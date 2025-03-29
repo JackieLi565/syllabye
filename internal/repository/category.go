@@ -19,11 +19,11 @@ type CourseCategoryRepository interface {
 }
 
 type pgCourseCategoryRepository struct {
-	db  *database.DB
+	db  *database.PostgresDb
 	log logger.Logger
 }
 
-func NewPgCourseCategoryRepository(db *database.DB, log logger.Logger) *pgCourseCategoryRepository {
+func NewPgCourseCategoryRepository(db *database.PostgresDb, log logger.Logger) *pgCourseCategoryRepository {
 	return &pgCourseCategoryRepository{
 		db:  db,
 		log: log,

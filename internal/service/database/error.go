@@ -1,15 +1,6 @@
 package database
 
-import (
-	"errors"
-
-	"github.com/jackc/pgx/v5/pgconn"
+var (
+	PgConflictErrCode = "23505"
+	PgCheckErrCode    = "23514"
 )
-
-func IsErrConflict(err error) bool {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		return true
-	}
-	return false
-}

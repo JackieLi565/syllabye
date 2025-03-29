@@ -13,7 +13,7 @@ type ICourseCategory struct {
 	DateAdded time.Time
 }
 
-func (c ICourseCategory) ToCourseCategory() CourseCategory {
+func ToCourseCategory(c ICourseCategory) CourseCategory {
 	return CourseCategory{
 		Id:   c.Id,
 		Name: c.Name,

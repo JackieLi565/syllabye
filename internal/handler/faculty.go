@@ -36,7 +36,7 @@ func (p *facultyHandler) GetFaculty(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(iFaculty.ToFaculty())
+	json.NewEncoder(w).Encode(model.ToFaculty(iFaculty))
 }
 
 func (p *facultyHandler) ListFaculties(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +54,7 @@ func (p *facultyHandler) ListFaculties(w http.ResponseWriter, r *http.Request) {
 
 	faculties := make([]model.Faculty, 0, len(iFaculties))
 	for _, iFaculty := range iFaculties {
-		faculties = append(faculties, iFaculty.ToFaculty())
+		faculties = append(faculties, model.ToFaculty(iFaculty))
 	}
 
 	json.NewEncoder(w).Encode(faculties)

@@ -10,11 +10,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type DB struct {
+type PostgresDb struct {
 	Pool *pgxpool.Pool
 }
 
-func NewDB() (*DB, error) {
+func NewPostgresDb() (*PostgresDb, error) {
 	dbUrl := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
 		os.Getenv(config.PostgresUser), os.Getenv(config.PostgresPassword), os.Getenv(config.PostgresHost), os.Getenv(config.PostgresPort), os.Getenv(config.PostgresDatabase))
 
@@ -29,9 +29,9 @@ func NewDB() (*DB, error) {
 	} else {
 		log.Println("database connection pool created")
 	}
-	return &DB{Pool: pool}, nil
+	return &PostgresDb{Pool: pool}, nil
 }
 
-func (db *DB) Close() {
+func (db *PostgresDb) Close() {
 	db.Pool.Close()
 }

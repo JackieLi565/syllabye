@@ -24,7 +24,7 @@ type ICourse struct {
 	DateAdded   time.Time
 }
 
-func (c ICourse) ToCourse() Course {
+func ToCourse(c ICourse) Course {
 	return Course{
 		Id:          c.Id,
 		CategoryId:  c.CategoryId,

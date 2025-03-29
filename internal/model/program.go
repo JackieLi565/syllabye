@@ -19,7 +19,7 @@ type IProgram struct {
 	DateAdded time.Time
 }
 
-func (p IProgram) ToProgram() Program {
+func ToProgram(p IProgram) Program {
 	return Program{
 		Id:        p.Id,
 		FacultyId: p.FacultyId,

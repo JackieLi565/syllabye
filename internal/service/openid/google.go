@@ -4,11 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/JackieLi565/syllabye/internal/config"
+	"github.com/JackieLi565/syllabye/internal/service/logger"
+	"github.com/JackieLi565/syllabye/internal/util"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/idtoken"
 )
 
@@ -25,31 +31,29 @@ type googleStandardClaims struct {
 	Sub           string `json:"sub"`
 }
 
-// TODO: add logger
 type GoogleOpenIdProvider struct {
 	config *oauth2.Config
+	log    logger.Logger
 }
 
-func NewGoogleOpenIdProvider() *GoogleOpenIdProvider {
+func NewGoogleOpenIdProvider(log logger.Logger) *GoogleOpenIdProvider {
 	return &GoogleOpenIdProvider{
 		config: &oauth2.Config{
 			ClientID:     os.Getenv(config.GoogleOAuthClientId),
 			ClientSecret: os.Getenv(config.GoogleOAuthClientSecret),
 			RedirectURL:  os.Getenv(config.GoogleOAuthRedirectUrl),
-			Endpoint: oauth2.Endpoint{
-				AuthURL:  "https://accounts.google.com/o/oauth2/auth",
-				TokenURL: "https://www.googleapis.com/oauth2/v4/token",
-			},
+			Endpoint:     google.Endpoint,
 			Scopes: []string{
 				"openid",
 				"https://www.googleapis.com/auth/userinfo.email",
 				"https://www.googleapis.com/auth/userinfo.profile",
 			},
 		},
+		log: log,
 	}
 }
 
-func (g GoogleOpenIdProvider) AuthConsentUrl(payload *StateClaims) (string, error) {
+func (g *GoogleOpenIdProvider) AuthConsentUrl(payload *StateClaims) (string, error) {
 	stateToken, err := newStateClaims(payload)
 	if err != nil {
 		return "", err
@@ -58,8 +62,48 @@ func (g GoogleOpenIdProvider) AuthConsentUrl(payload *StateClaims) (string, erro
 	return g.config.AuthCodeURL(stateToken, oauth2.SetAuthURLParam("hd", "torontomu.ca")), nil
 }
 
-func (g GoogleOpenIdProvider) VerifyCodeExchange(code string) (*oauth2.Token, error) {
-	token, err := g.config.Exchange(context.Background(), code)
+func (g *GoogleOpenIdProvider) GetOpenIdToken(code string) (string, error) {
+	form := url.Values{
+		"code":          {code},
+		"grant_type":    {"authorization_code"},
+		"client_id":     {g.config.ClientID},
+		"client_secret": {g.config.ClientSecret},
+		"redirect_uri":  {g.config.RedirectURL},
+	}
+
+	resp, err := http.PostForm(g.config.Endpoint.TokenURL, form)
+	if err != nil {
+		g.log.Error("failed to reach code exchange endpoint", logger.Err(err))
+		return "", util.ErrInternal
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		g.log.Error("unsuccessful code exchange request", logger.Err(err))
+		return "", util.ErrInternal
+	}
+
+	var parsed map[string]interface{}
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		g.log.Error("failed to parse code exchange response body", logger.Err(err))
+		return "", util.ErrMalformed
+	}
+
+	// Get id_token
+	if idToken, ok := parsed["id_token"].(string); ok {
+		return idToken, nil
+	} else {
+		g.log.Error("code exchange response body did not contain 'id_token' key")
+		return "", util.ErrMalformed
+	}
+}
+
+// VerifyCodeExchange current implementation with oauth2 does not work
+// Error invalid_grant Bad Request is thrown with correct credentials
+// Most likely internal lib error.
+func (g *GoogleOpenIdProvider) VerifyCodeExchange(code string) (*oauth2.Token, error) {
+	token, err := g.config.Exchange(context.TODO(), code)
 	if err != nil {
 		log.Println("code authorization failed")
 		return nil, err
@@ -68,9 +112,9 @@ func (g GoogleOpenIdProvider) VerifyCodeExchange(code string) (*oauth2.Token, er
 	return token, nil
 }
 
-func (g GoogleOpenIdProvider) ParseStandardClaims(tokenString string) (StandardClaims, error) {
+func (g *GoogleOpenIdProvider) ParseStandardClaims(tokenString string) (StandardClaims, error) {
 	var standardClaims StandardClaims
-	token, err := idtoken.Validate(context.Background(), tokenString, g.config.ClientID)
+	token, err := idtoken.Validate(context.TODO(), tokenString, g.config.ClientID)
 	if err != nil {
 		return standardClaims, fmt.Errorf("failed to verify Google ID token: %w", err)
 	}
@@ -95,6 +139,6 @@ func (g GoogleOpenIdProvider) ParseStandardClaims(tokenString string) (StandardC
 	}, nil
 }
 
-func (g GoogleOpenIdProvider) ParseStateClaims(tokenString string) (*StateClaims, error) {
+func (g *GoogleOpenIdProvider) ParseStateClaims(tokenString string) (*StateClaims, error) {
 	return parseStateClaims(tokenString)
 }

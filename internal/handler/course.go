@@ -37,7 +37,7 @@ func (c *courseHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(iCourse.ToCourse())
+	json.NewEncoder(w).Encode(model.ToCourse(iCourse))
 }
 
 func (c *courseHandler) ListCourses(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +61,7 @@ func (c *courseHandler) ListCourses(w http.ResponseWriter, r *http.Request) {
 
 	courses := make([]model.Course, 0, len(iCourses))
 	for _, iCourse := range iCourses {
-		courses = append(courses, iCourse.ToCourse())
+		courses = append(courses, model.ToCourse(iCourse))
 	}
 
 	json.NewEncoder(w).Encode(courses)
