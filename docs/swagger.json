@@ -1,0 +1,137 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Syllabye API server.",
+        "title": "Syllabye API",
+        "contact": {
+            "name": "Jackie Li"
+        },
+        "version": "1.0"
+    },
+    "paths": {
+        "/me": {
+            "get": {
+                "security": [
+                    {
+                        "Session": []
+                    }
+                ],
+                "description": "Validates the session cookie and returns session payload if authenticated.",
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Check user session",
+                "responses": {
+                    "200": {
+                        "description": "Valid session",
+                        "schema": {
+                            "$ref": "#/definitions/model.Session"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid session cookie",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/providers/google": {
+            "get": {
+                "description": "Validates an optional redirect query param and redirects the user to the OpenID login flow.",
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Redirect to OpenID consent screen",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Optional redirect URL after login",
+                        "name": "redirect",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirects to OpenID consent screen",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Unable to continue to OpenID provider",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/providers/google/callback": {
+            "get": {
+                "description": "Validates authorization code and state, registers or logs in user, and sets session cookie.",
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "OpenID provider callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code returned by the OpenID provider",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "State token for CSRF protection and redirect tracking",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirects to dashboard or original destination",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid or expired state token",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Token exchange, validation, or session creation failed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "model.Session": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "Session": {
+            "type": "apiKey",
+            "name": "syllabye.session",
+            "in": "cookie"
+        }
+    }
+}

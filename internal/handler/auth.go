@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -36,6 +37,14 @@ func NewAuthHandler(log logger.Logger, user repository.UserRepository, session r
 	}
 }
 
+// ConsentUrlRedirect initiates the login flow by redirecting to the OpenID provider's consent screen.
+// @Summary Redirect to OpenID consent screen
+// @Description Validates an optional redirect query param and redirects the user to the OpenID login flow.
+// @Tags Authentication
+// @Param redirect query string false "Optional redirect URL after login"
+// @Success 302 {string} string "Redirects to OpenID consent screen"
+// @Failure 500 {string} string "Unable to continue to OpenID provider"
+// @Router /providers/google [get]
 func (ah *authHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request) {
 	redirectUrl := r.URL.Query().Get("redirect")
 	parsedRedirectUrl, err := url.Parse(redirectUrl)
@@ -70,6 +79,16 @@ func (ah *authHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
+// ProviderCallback handles the OAuth2 callback from the OpenID provider.
+// @Summary OpenID provider callback
+// @Description Validates authorization code and state, registers or logs in user, and sets session cookie.
+// @Tags Authentication
+// @Param code query string true "Authorization code returned by the OpenID provider"
+// @Param state query string true "State token for CSRF protection and redirect tracking"
+// @Success 302 {string} string "Redirects to dashboard or original destination"
+// @Failure 401 {string} string "Invalid or expired state token"
+// @Failure 500 {string} string "Token exchange, validation, or session creation failed"
+// @Router /providers/google/callback [get]
 func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	code := query.Get("code")
@@ -144,12 +163,29 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// SessionCheck verifies the user's session cookie and returns session information if valid.
+// @Summary Check user session
+// @Description Validates the session cookie and returns session payload if authenticated.
+// @Tags Authentication
+// @Success 200 {object} model.Session "Valid session"
+// @Failure 401 {string} string "Missing or invalid session cookie"
+// @Router /me [get]
+// @Security Session
 func (ah *authHandler) SessionCheck(w http.ResponseWriter, r *http.Request) {
-	sessionValue := r.Context().Value(config.SessionKey)
-	if sessionValue == nil {
-		ah.log.Error("missing session middleware")
+	sessionCookie, err := r.Cookie(config.SessionCookie)
+	if err != nil {
+		http.Error(w, "Cookie not found.", http.StatusUnauthorized)
+		return
 	}
 
+	session, err := ah.decodeSessionToken(sessionCookie.Value)
+	if err != nil {
+		http.Error(w, "Invalid session token.", http.StatusUnauthorized)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(session)
 }
 
 func (ah *authHandler) SessionMiddleware(next http.Handler) http.Handler {
