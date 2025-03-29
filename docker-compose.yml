@@ -1,14 +1,13 @@
 services:
   postgres:
+    container_name: "${SYLLABYE_POSTGRES:-syllabye_postgres}"
     image: postgres:latest
-    container_name: syllabye_postgres
-    restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DATABASE}
+      POSTGRES_USER: "${POSTGRES_USER:-root}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-admin}"
+      POSTGRES_DB: "${POSTGRES_DATABASE:-postgres}"
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - ${POSTGRES_PORT:-5432}:5432
     healthcheck:
       test:
         ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DATABASE}"]
@@ -17,22 +16,33 @@ services:
       start_period: 30s
       timeout: 10s
     volumes:
-      - syllabye_postgres_data:/var/lib/postgresql/data
+      - "${POSTGRES_VOLUME:-./.postgres}:/var/lib/postgresql/data"
+
+  localstack:
+    container_name: "${SYLLABYE_LOCALSTACK:-syllabye_localstack}"
+    image: localstack/localstack
+    ports:
+      - ${LOCALSTACK_PORT:-4566}:4566
+    environment:
+      - DEBUG=${DEBUG:-0}
+      - PERSISTENCE=${LOCALSTACK_PERSISTENCE:-0}
+    volumes:
+      - "${LOCALSTACK_VOLUME:-./.localstack}:/var/lib/localstack"
+      - /var/run/docker.sock:/var/run/docker.sock
 
   migrate:
+    container_name: "${SYLLABYE_MIGRATE:-syllabye_migrate}"
     image: migrate/migrate:latest
-    container_name: syllabye_migrator
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
       - ./migrations:/migrations
-    entrypoint:
-      [
+    entrypoint: [
         "/bin/sh",
         "-c",
-        "migrate -path=/migrations -database=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DATABASE}?sslmode=disable up",
+        "migrate \
+        -path=/migrations \
+        -database=postgresql://${POSTGRES_USER:-root}:${POSTGRES_PASSWORD:-admin}@postgres:5432/${POSTGRES_DATABASE:-postgres}?sslmode=disable \
+        up",
       ]
-
-volumes:
-  syllabye_postgres_data:
