@@ -39,6 +39,11 @@ export default defineNuxtConfig({
     dataValue: 'theme', // Adds `data-theme="dark"` to <html>
     classSuffix: '',
   },
+  runtimeConfig: {
+    public: {
+      googleAuth: ''
+    }
+  },
   app: {
     head: {
       title: 'Syllabye',
