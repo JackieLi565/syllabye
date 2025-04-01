@@ -14,7 +14,8 @@ import {
 } from '@/components/ui/dialog/index'
 
 const config = useRuntimeConfig();
-console.log(config.public.googleAuth)
+console.log("GOOGLE AUTH: ", config.public.googleAuth)
+const authUrl = config.public.googleAuth + "http://localhost:3000"
 </script>
 
 <template>
@@ -31,7 +32,7 @@ console.log(config.public.googleAuth)
         <Separator />
         <div class="space-y-2 py-5">
           <CardDescription>Sign in with your <b>torontomu.ca</b> email</CardDescription>
-          <NuxtLink :to="config.public.googleAuth">
+          <NuxtLink :to="authUrl">
             <Button variant="secondary">
               <Icon icon="logos:google-icon" class="h-[1.6rem] w-[1.6rem]"/>
               <span>Sign in with Google</span>
