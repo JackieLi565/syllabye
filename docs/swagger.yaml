@@ -740,7 +740,7 @@ paths:
       summary: Get a user
       tags:
       - User
-    put:
+    patch:
       parameters:
       - description: User ID
         in: path
