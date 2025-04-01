@@ -5,13 +5,15 @@ import (
 	"os"
 
 	_ "github.com/JackieLi565/syllabye/docs"
+	"github.com/JackieLi565/syllabye/internal/config"
 	"github.com/JackieLi565/syllabye/internal/handler"
 	"github.com/JackieLi565/syllabye/internal/repository"
+	"github.com/JackieLi565/syllabye/internal/service/bucket"
 	"github.com/JackieLi565/syllabye/internal/service/database"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/service/openid"
 	"github.com/go-chi/chi/v5"
-	httpSwagger "github.com/swaggo/http-swagger" // http-swagger middleware
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 // @title Syllabye API
@@ -33,11 +35,15 @@ func main() {
 		log = logger.NewTextLogger()
 	}
 
-	// Globals
+	// Services
 	db, err := database.NewPostgresDb()
-	if err != nil {
+	if err != nil { // TODO: remove panic and panic from function level
 		panic("database connection failed")
 	}
+	s3Client := bucket.NewS3Client(log)
+
+	googleOpenId := openid.NewGoogleOpenIdProvider(log)
+	s3Presigner := bucket.NewS3Presigner(log, s3Client, os.Getenv(config.AWS_S3_SYLLABI_BUCKET))
 
 	// Repositories
 	pgProgramRepo := repository.NewPgProgramRepository(db, log)
@@ -46,9 +52,7 @@ func main() {
 	pgFacultyRepo := repository.NewPgFacultyRepository(db, log)
 	pgCourseCategoryRepo := repository.NewPgCourseCategoryRepository(db, log)
 	pgCourseRepo := repository.NewPgCourseRepository(db, log)
-
-	// Services
-	googleOpenId := openid.NewGoogleOpenIdProvider(log)
+	pgSyllabusRepo := repository.NewPgSyllabusRepository(db, log)
 
 	// Handlers
 	utilHandler := handler.NewUtilHandler()
@@ -58,11 +62,15 @@ func main() {
 	courseCategoryHandler := handler.NewCourseCategoryHandler(log, pgCourseCategoryRepo)
 	courseHandler := handler.NewCourseHandler(log, pgCourseRepo)
 	userHandler := handler.NewUserHandler(log, pgUserRepo)
+	syllabusHandler := handler.NewSyllabusHandler(log, pgSyllabusRepo, s3Presigner)
 
 	r := chi.NewRouter()
 	r.Use(utilHandler.RequestIdMiddleware)
 
+	var basePath string
 	if env == "development" {
+		basePath = "/api"
+
 		r.Route("/openapi", func(r chi.Router) {
 			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, "/openapi/index.html", http.StatusFound)
@@ -76,51 +84,81 @@ func main() {
 				httpSwagger.URL("http://localhost:8000/openapi/doc.json"),
 			))
 		})
+	} else {
+		basePath = "/"
+	}
 
-		r.Route("/api", func(r chi.Router) {
-			r.Route("/providers/google", func(r chi.Router) {
-				r.Get("/", authHandler.ConsentUrlRedirect)
-				r.Get("/callback", authHandler.ProviderCallback)
+	r.Route(basePath, func(r chi.Router) {
+		r.Route("/providers/google", func(r chi.Router) {
+			r.Get("/", authHandler.ConsentUrlRedirect)
+			r.Get("/callback", authHandler.ProviderCallback)
+		})
+
+		r.Route("/me", func(r chi.Router) {
+			r.Use(utilHandler.JsonMiddleware)
+
+			r.Get("/", authHandler.SessionCheck)
+		})
+
+		r.Route("/programs", func(r chi.Router) {
+			r.Use(authHandler.SessionMiddleware)
+			r.Use(utilHandler.JsonMiddleware)
+
+			r.Get("/", programHandler.ListPrograms)
+			r.Get("/{programId}", programHandler.GetProgram)
+		})
+
+		r.Route("/faculties", func(r chi.Router) {
+			r.Use(authHandler.SessionMiddleware)
+			r.Use(utilHandler.JsonMiddleware)
+
+			r.Get("/", facultyHandler.ListFaculties)
+			r.Get("/{facultyId}", facultyHandler.GetFaculty)
+		})
+
+		r.Route("/users", func(r chi.Router) {
+			r.Use(authHandler.SessionMiddleware)
+			r.Use(utilHandler.JsonMiddleware)
+
+			r.Route("/{userId}", func(r chi.Router) {
+				r.Get("/", userHandler.GetUser)
+				r.Patch("/", userHandler.UpdateUser)
 			})
+		})
 
-			r.Route("/programs", func(r chi.Router) {
-				r.Use(authHandler.SessionMiddleware)
-				r.Use(utilHandler.JsonMiddleware)
+		r.Route("/courses", func(r chi.Router) {
+			r.Use(authHandler.SessionMiddleware)
+			r.Use(utilHandler.JsonMiddleware)
 
-				r.Get("/", programHandler.ListPrograms)
-				r.Get("/{programId}", programHandler.GetProgram)
+			r.Get("/", courseHandler.ListCourses)
+			r.Get("/{courseId}", courseHandler.GetCourse)
+
+			r.Route("/categories", func(r chi.Router) {
+				r.Get("/", courseCategoryHandler.ListCourseCategories)
+				r.Get("/{categoryId}", courseCategoryHandler.GetCourseCategory)
 			})
+		})
 
-			r.Route("/faculties", func(r chi.Router) {
-				r.Use(authHandler.SessionMiddleware)
-				r.Use(utilHandler.JsonMiddleware)
+		r.Route("/syllabi", func(r chi.Router) {
+			r.Use(authHandler.SessionMiddleware)
+			r.Use(utilHandler.JsonMiddleware)
 
-				r.Get("/", facultyHandler.ListFaculties)
-				r.Get("/{facultyId}", facultyHandler.GetFaculty)
-			})
+			r.Post("/", syllabusHandler.CreateSyllabus)
+			r.Get("/", syllabusHandler.ListSyllabi)
 
-			r.Route("/users", func(r chi.Router) {
-				r.Use(authHandler.SessionMiddleware)
-				r.Use(utilHandler.JsonMiddleware)
+			r.Route("/{syllabusId}", func(r chi.Router) {
+				r.Get("/", syllabusHandler.GetSyllabus)
+				r.Patch("/", syllabusHandler.UpdateSyllabus)
+				r.Delete("/", syllabusHandler.DeleteSyllabus)
+				r.Get("/sync", syllabusHandler.SyncSyllabus)
 
-				r.Get("/{userId}", userHandler.GetUser)
-				r.Patch("/{userId}", userHandler.UpdateUser)
-			})
-
-			r.Route("/courses", func(r chi.Router) {
-				r.Use(authHandler.SessionMiddleware)
-				r.Use(utilHandler.JsonMiddleware)
-
-				r.Get("/", courseHandler.ListCourses)
-				r.Get("/{courseId}", courseHandler.GetCourse)
-
-				r.Route("/categories", func(r chi.Router) {
-					r.Get("/", courseCategoryHandler.ListCourseCategories)
-					r.Get("/{categoryId}", courseCategoryHandler.GetCourseCategory)
+				r.Route("/reactions", func(r chi.Router) {
+					r.Post("/", syllabusHandler.SyllabusReaction)
+					r.Get("/", syllabusHandler.DeleteSyllabusReaction)
 				})
 			})
 		})
-	}
+	})
 
 	http.ListenAndServe(os.Getenv("PORT"), r)
 }

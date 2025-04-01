@@ -7,9 +7,13 @@ all: build
 build:
 	go build -o bin/app ./cmd/server
 
-.PHONY: run
+.PHONY: serve
 run:
 	go run ./cmd/server
+
+.PHONY: dev
+run:
+	air
 
 .PHONY: fmt
 fmt:
@@ -23,3 +27,4 @@ docs:
 .PHONY: clean
 clean:
 	rm -rf bin/
+	rm -rf tmp/

@@ -8,6 +8,10 @@ variable "aws_s3_endpoint" {}
 
 variable "aws_s3_syllabi_bucket" {}
 
+variable "aws_iam_endpoint" {}
+
+variable "aws_lambda_endpoint" {}
+
 variable "env" {
   default = "development"
 }
