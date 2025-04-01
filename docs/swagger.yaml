@@ -1,9 +1,142 @@
 definitions:
+  model.Course:
+    properties:
+      categoryId:
+        type: string
+      course:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      title:
+        type: string
+      uri:
+        type: string
+    type: object
+  model.CourseCategory:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  model.CreateSyllabus:
+    properties:
+      checksum:
+        type: string
+      contentType:
+        type: string
+      courseId:
+        type: string
+      fileName:
+        type: string
+      fileSize:
+        type: integer
+      semester:
+        type: string
+      year:
+        type: integer
+    type: object
+  model.Faculty:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  model.Program:
+    properties:
+      faculty:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      uri:
+        type: string
+    type: object
   model.Session:
     properties:
       id:
         type: string
       userId:
+        type: string
+    type: object
+  model.Syllabus:
+    properties:
+      contentType:
+        type: string
+      courseId:
+        type: string
+      dateAdded:
+        type: integer
+      fileName:
+        type: string
+      fileSize:
+        type: integer
+      id:
+        type: string
+      received:
+        type: boolean
+      semester:
+        type: string
+      userId:
+        type: string
+      year:
+        type: integer
+    type: object
+  model.SyllabusLike:
+    properties:
+      dateReacted:
+        type: integer
+      dislike:
+        type: boolean
+      syllabusId:
+        type: string
+      userId:
+        type: string
+    type: object
+  model.SyllabusReaction:
+    properties:
+      action:
+        type: string
+    type: object
+  model.UpdateSyllabus:
+    properties:
+      semester:
+        type: string
+      year:
+        type: integer
+    type: object
+  model.UpdateUser:
+    properties:
+      currentYear:
+        type: integer
+      gender:
+        type: string
+      nickname:
+        type: string
+      program:
+        type: string
+    type: object
+  model.User:
+    properties:
+      currentYear:
+        type: integer
+      email:
+        type: string
+      fullname:
+        type: string
+      gender:
+        type: string
+      id:
+        type: string
+      nickname:
+        type: string
+      picture:
+        type: string
+      programId:
         type: string
     type: object
 info:
@@ -13,6 +146,149 @@ info:
   title: Syllabye API
   version: "1.0"
 paths:
+  /courses:
+    get:
+      parameters:
+      - description: Search by course name or code
+        in: query
+        name: search
+        type: string
+      - description: Filter by category ID
+        in: query
+        name: category
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 10)'
+        in: query
+        name: size
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Course'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: List courses
+      tags:
+      - Course
+  /courses/{courseId}:
+    get:
+      parameters:
+      - description: Course ID
+        in: path
+        name: courseId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Course'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: Get a course
+      tags:
+      - Course
+  /courses/categories:
+    get:
+      parameters:
+      - description: Search keyword
+        in: query
+        name: search
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.CourseCategory'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: List course categories
+      tags:
+      - Course Category
+  /courses/categories/{categoryId}:
+    get:
+      parameters:
+      - description: Category ID
+        in: path
+        name: categoryId
+        required: true
+        type: string
+      responses:
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: Retrieves a course category.
+      tags:
+      - Course Category
+  /faculties:
+    get:
+      parameters:
+      - description: Search by faculty name
+        in: query
+        name: search
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Faculty'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: List faculties
+      tags:
+      - Faculty
+  /faculties/{facultyId}:
+    get:
+      parameters:
+      - description: Faculty ID
+        in: path
+        name: facultyId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Faculty'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: Get a faculty
+      tags:
+      - Faculty
   /me:
     get:
       description: Validates the session cookie and returns session payload if authenticated.
@@ -30,6 +306,55 @@ paths:
       summary: Check user session
       tags:
       - Authentication
+  /programs:
+    get:
+      parameters:
+      - description: Filter by faculty ID
+        in: query
+        name: faculty
+        type: string
+      - description: Search by program name or code
+        in: query
+        name: search
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Program'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: List programs
+      tags:
+      - Program
+  /programs/{programId}:
+    get:
+      parameters:
+      - description: Program ID
+        in: path
+        name: programId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Program'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: Get a program
+      tags:
+      - Program
   /providers/google:
     get:
       description: Validates an optional redirect query param and redirects the user
@@ -82,7 +407,388 @@ paths:
       summary: OpenID provider callback
       tags:
       - Authentication
+  /syllabi:
+    get:
+      parameters:
+      - description: Filter by user ID
+        in: query
+        name: userId
+        type: string
+      - description: Filter by course ID
+        in: query
+        name: courseId
+        type: string
+      - description: Filter by year
+        in: query
+        name: year
+        type: integer
+      - description: Filter by semester
+        in: query
+        name: semester
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 10)'
+        in: query
+        name: size
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Syllabus'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: List syllabi
+      tags:
+      - Syllabus
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Syllabus data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateSyllabus'
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location:
+              description: URL to access the created syllabus
+              type: string
+            X-Presigned-Url:
+              description: Presigned URL to upload the syllabus file
+              type: string
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: Create a syllabus
+      tags:
+      - Syllabus
+  /syllabi/{syllabusId}:
+    delete:
+      parameters:
+      - description: Syllabus ID
+        in: path
+        name: syllabusId
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: Delete a syllabus
+      tags:
+      - Syllabus
+    get:
+      parameters:
+      - description: Syllabus ID
+        in: path
+        name: syllabusId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Presigned-Url:
+              description: Presigned URL to access the syllabus file
+              type: string
+          schema:
+            $ref: '#/definitions/model.Syllabus'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: Get a syllabus
+      tags:
+      - Syllabus
+    patch:
+      parameters:
+      - description: Syllabus ID
+        in: path
+        name: syllabusId
+        required: true
+        type: string
+      - description: Updated syllabus data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateSyllabus'
+      responses:
+        "204":
+          description: No Content
+          headers:
+            Location:
+              description: URL to access the updated syllabus
+              type: string
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: Update a syllabus
+      tags:
+      - Syllabus
+  /syllabi/{syllabusId}/reaction:
+    delete:
+      parameters:
+      - description: Syllabus ID
+        in: path
+        name: syllabusId
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: Remove syllabus reaction
+      tags:
+      - Syllabus
+    post:
+      parameters:
+      - description: Syllabus ID
+        in: path
+        name: syllabusId
+        required: true
+        type: string
+      - description: Reaction action
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.SyllabusReaction'
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "409":
+          description: Conflict
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: React to a syllabus
+      tags:
+      - Syllabus
+  /syllabi/{syllabusId}/reactions:
+    get:
+      parameters:
+      - description: Syllabus ID
+        in: path
+        name: syllabusId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.SyllabusLike'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: List syllabus reactions
+      tags:
+      - Syllabus
+  /syllabi/{syllabusId}/sync:
+    get:
+      parameters:
+      - description: Syllabus ID
+        in: path
+        name: syllabusId
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+          headers:
+            Location:
+              description: URL to access the synced syllabus
+              type: string
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - AWS: []
+      summary: Sync a syllabus
+      tags:
+      - Syllabus
+  /users/{userId}:
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.User'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: Get a user
+      tags:
+      - User
+    put:
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Updated user data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateUser'
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location:
+              description: URL to access the updated user
+              type: string
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+        "409":
+          description: Conflict
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: Update a user
+      tags:
+      - User
 securityDefinitions:
+  AWS:
+    description: 'Provide a valid Bearer token. Example: "Bearer {jwt-token}"'
+    in: header
+    name: Authorization
+    type: apiKey
   Session:
     in: cookie
     name: syllabye.session

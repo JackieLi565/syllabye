@@ -18,6 +18,13 @@ type Syllabus struct {
 	Received    bool   `json:"received"`
 }
 
+type SyllabusLike struct {
+	SyllabusId string `json:"syllabusId"`
+	UserId     string `json:"userId"`
+	IsDislike  bool   `json:"dislike"`
+	DateAdded  int64  `json:"dateReacted"`
+}
+
 type ISyllabus struct {
 	Id          string
 	UserId      string
@@ -29,6 +36,13 @@ type ISyllabus struct {
 	Semester    string
 	DateAdded   time.Time
 	DateSynced  sql.NullTime
+}
+
+type ISyllabusLike struct {
+	SyllabusId string
+	UserId     string
+	IsDislike  bool
+	DateAdded  time.Time
 }
 
 type TSyllabus struct {
@@ -81,5 +95,14 @@ func ToSyllabus(syllabus ISyllabus) Syllabus {
 		Semester:    syllabus.Semester,
 		DateAdded:   syllabus.DateAdded.UnixMicro(),
 		Received:    syllabus.DateSynced.Valid,
+	}
+}
+
+func ToSyllabusLike(like ISyllabusLike) SyllabusLike {
+	return SyllabusLike{
+		SyllabusId: like.SyllabusId,
+		UserId:     like.UserId,
+		IsDislike:  like.IsDislike,
+		DateAdded:  like.DateAdded.UnixMicro(),
 	}
 }

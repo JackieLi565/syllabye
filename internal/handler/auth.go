@@ -19,7 +19,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-const defaultRedirect = "/home"
+const defaultRedirectUri = "/"
 
 type authHandler struct {
 	log            logger.Logger
@@ -50,11 +50,12 @@ func (ah *authHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request
 	parsedRedirectUrl, err := url.Parse(redirectUrl)
 	if err != nil {
 		ah.log.Warn("invalid redirect url provided")
-		redirectUrl = ""
+		redirectUrl = os.Getenv(config.Domain) + defaultRedirectUri
 	} else {
 		// Redirect must be from the same browser host. In this case its the syllabye domain
-		if parsedRedirectUrl.Host != r.Host {
-			redirectUrl = ""
+		if parsedRedirectUrl.Host != r.Host && os.Getenv(config.ENV) != "development" {
+			ah.log.Info(fmt.Sprintf("restricted redirect url %s", parsedRedirectUrl.String()))
+			redirectUrl = os.Getenv(config.Domain) + defaultRedirectUri
 		}
 	}
 
@@ -62,11 +63,11 @@ func (ah *authHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request
 	if err == nil {
 		_, err := ah.decodeSessionToken(sessionCookie.Value)
 		if err == nil {
-			http.Redirect(w, r, defaultRedirect, http.StatusFound)
+			http.Redirect(w, r, redirectUrl, http.StatusFound)
 			return
 		}
 	}
-	ah.log.Info(redirectUrl)
+
 	url, err := ah.openIdProvider.AuthConsentUrl(&openid.StateClaims{
 		Redirect: redirectUrl,
 	})
@@ -159,7 +160,7 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 	if stateClaims.Redirect != "" {
 		http.Redirect(w, r, stateClaims.Redirect, http.StatusFound)
 	} else {
-		http.Redirect(w, r, defaultRedirect, http.StatusFound)
+		http.Redirect(w, r, os.Getenv(config.Domain)+defaultRedirectUri, http.StatusFound)
 	}
 }
 

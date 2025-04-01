@@ -23,6 +23,13 @@ func NewCourseCategoryHandler(log logger.Logger, category repository.CourseCateg
 	}
 }
 
+// GetCourseCategory retrieves a specific course category given the ID.
+// @Summary Retrieves a course category.
+// @Tags Course Category
+// @Param categoryId path string true "Category ID"
+// @Failure 500 {string} string
+// @Security Session
+// @Router /courses/categories/{categoryId} [get]
 func (p *courseCategoryHandler) GetCourseCategory(w http.ResponseWriter, r *http.Request) {
 	sessionValue := r.Context().Value(config.SessionKey)
 	if sessionValue == nil {
@@ -39,6 +46,14 @@ func (p *courseCategoryHandler) GetCourseCategory(w http.ResponseWriter, r *http
 	json.NewEncoder(w).Encode(model.ToCourseCategory(iCourseCategory))
 }
 
+// ListCourseCategories returns a list of course categories, optionally filtered by search.
+// @Summary List course categories
+// @Tags Course Category
+// @Param search query string false "Search keyword"
+// @Success 200 {array} model.CourseCategory
+// @Failure 500 {string} string
+// @Security Session
+// @Router /courses/categories [get]
 func (p *courseCategoryHandler) ListCourseCategories(w http.ResponseWriter, r *http.Request) {
 	sessionValue := r.Context().Value(config.SessionKey)
 	if sessionValue == nil {

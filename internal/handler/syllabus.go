@@ -30,6 +30,17 @@ func NewSyllabusHandler(log logger.Logger, syllabus repository.SyllabusRepositor
 	}
 }
 
+// GetSyllabus retrieves a specific syllabus by ID and returns a signed URL in the header.
+// @Summary Get a syllabus
+// @Tags Syllabus
+// @Param syllabusId path string true "Syllabus ID"
+// @Success 200 {object} model.Syllabus
+// @Header 200 {string} X-Presigned-Url "Presigned URL to access the syllabus file"
+// @Failure 400 {string} string
+// @Failure 404 {string} string
+// @Failure 500 {string} string
+// @Security Session
+// @Router /syllabi/{syllabusId} [get]
 func (s *syllabusHandler) GetSyllabus(w http.ResponseWriter, r *http.Request) {
 	sessionValue, ok := r.Context().Value(config.SessionKey).(model.Session)
 	if !ok {
@@ -62,6 +73,18 @@ func (s *syllabusHandler) GetSyllabus(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(model.ToSyllabus(syllabus))
 }
 
+// CreateSyllabus creates a new syllabus and returns a presigned upload URL in the response header.
+// @Summary Create a syllabus
+// @Tags Syllabus
+// @Accept json
+// @Param body body model.CreateSyllabus true "Syllabus data"
+// @Success 201 {string} string
+// @Header 201 {string} X-Presigned-Url "Presigned URL to upload the syllabus file"
+// @Header 201 {string} Location "URL to access the created syllabus"
+// @Failure 400 {string} string
+// @Failure 500 {string} string
+// @Security Session
+// @Router /syllabi [post]
 func (s *syllabusHandler) CreateSyllabus(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value(config.SessionKey).(model.Session)
 	if !ok {
@@ -105,6 +128,20 @@ func (s *syllabusHandler) CreateSyllabus(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusCreated)
 }
 
+// ListSyllabi returns a paginated list of syllabi with optional filters.
+// @Summary List syllabi
+// @Tags Syllabus
+// @Param userId query string false "Filter by user ID"
+// @Param courseId query string false "Filter by course ID"
+// @Param year query int false "Filter by year"
+// @Param semester query string false "Filter by semester"
+// @Param page query int false "Page number (default: 1)"
+// @Param size query int false "Page size (default: 10)"
+// @Success 200 {array} model.Syllabus
+// @Failure 400 {string} string
+// @Failure 500 {string} string
+// @Security Session
+// @Router /syllabi [get]
 func (s *syllabusHandler) ListSyllabi(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value(config.SessionKey).(model.Session)
 	if !ok {
@@ -146,6 +183,18 @@ func (s *syllabusHandler) ListSyllabi(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(publicSyllabi)
 }
 
+// UpdateSyllabus updates a syllabus' metadata (year and semester).
+// @Summary Update a syllabus
+// @Tags Syllabus
+// @Param syllabusId path string true "Syllabus ID"
+// @Param body body model.UpdateSyllabus true "Updated syllabus data"
+// @Success 204 {string} string
+// @Header 204 {string} Location "URL to access the updated syllabus"
+// @Failure 403 {string} string
+// @Failure 404 {string} string
+// @Failure 500 {string} string
+// @Security Session
+// @Router /syllabi/{syllabusId} [patch]
 func (s *syllabusHandler) UpdateSyllabus(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value(config.SessionKey).(model.Session)
 	if !ok {
@@ -180,6 +229,16 @@ func (s *syllabusHandler) UpdateSyllabus(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// DeleteSyllabus removes a syllabus by ID.
+// @Summary Delete a syllabus
+// @Tags Syllabus
+// @Param syllabusId path string true "Syllabus ID"
+// @Success 204 {string} string
+// @Failure 403 {string} string
+// @Failure 404 {string} string
+// @Failure 500 {string} string
+// @Security Session
+// @Router /syllabi/{syllabusId} [delete]
 func (s *syllabusHandler) DeleteSyllabus(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value(config.SessionKey).(model.Session)
 	if !ok {
@@ -204,6 +263,17 @@ func (s *syllabusHandler) DeleteSyllabus(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// SyllabusReaction registers a reaction to a syllabus.
+// @Summary React to a syllabus
+// @Tags Syllabus
+// @Param syllabusId path string true "Syllabus ID"
+// @Param body body model.SyllabusReaction true "Reaction action"
+// @Success 204 {string} string
+// @Failure 400 {string} string
+// @Failure 409 {string} string
+// @Failure 500 {string} string
+// @Security Session
+// @Router /syllabi/{syllabusId}/reaction [post]
 func (s *syllabusHandler) SyllabusReaction(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value(config.SessionKey).(model.Session)
 	if !ok {
@@ -234,6 +304,15 @@ func (s *syllabusHandler) SyllabusReaction(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// DeleteSyllabusReaction removes a user's reaction to a syllabus.
+// @Summary Remove syllabus reaction
+// @Tags Syllabus
+// @Param syllabusId path string true "Syllabus ID"
+// @Success 204 {string} string
+// @Failure 400 {string} string
+// @Failure 500 {string} string
+// @Security Session
+// @Router /syllabi/{syllabusId}/reaction [delete]
 func (s *syllabusHandler) DeleteSyllabusReaction(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value(config.SessionKey).(model.Session)
 	if !ok {
@@ -256,6 +335,53 @@ func (s *syllabusHandler) DeleteSyllabusReaction(w http.ResponseWriter, r *http.
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ListSyllabusLikes returns a list of users reactions to a syllabus.
+// @Summary List syllabus reactions
+// @Tags Syllabus
+// @Param syllabusId path string true "Syllabus ID"
+// @Success 200 {array} model.SyllabusLike
+// @Failure 400 {string} string
+// @Failure 500 {string} string
+// @Security Session
+// @Router /syllabi/{syllabusId}/reactions [get]
+func (s *syllabusHandler) ListSyllabusLikes(w http.ResponseWriter, r *http.Request) {
+	sessionValue := r.Context().Value(config.SessionKey)
+	if sessionValue == nil {
+		s.log.Error("session middleware potential missing")
+		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
+		return
+	}
+
+	syllabusId := chi.URLParam(r, "syllabusId")
+	likes, err := s.syllabusRepo.ListSyllabusLikes(r.Context(), syllabusId)
+	if err != nil {
+		if errors.Is(err, util.ErrMalformed) {
+			http.Error(w, "Invalid syllabus ID.", http.StatusBadRequest)
+		} else {
+			http.Error(w, "An internal error occurred.", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	publicLikes := make([]model.SyllabusLike, 0, len(likes))
+	for _, like := range likes {
+		publicLikes = append(publicLikes, model.ToSyllabusLike(like))
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(publicLikes)
+}
+
+// SyncSyllabus triggers synchronization of a syllabus resource.
+// @Summary Sync a syllabus
+// @Tags Syllabus
+// @Param syllabusId path string true "Syllabus ID"
+// @Success 204 {string} string
+// @Header 204 {string} Location "URL to access the synced syllabus"
+// @Failure 404 {string} string
+// @Failure 500 {string} string
+// @Security AWS
+// @Router /syllabi/{syllabusId}/sync [get]
 func (s *syllabusHandler) SyncSyllabus(w http.ResponseWriter, r *http.Request) {
 	// TODO AWS JWT Auth
 

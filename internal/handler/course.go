@@ -24,6 +24,14 @@ func NewCourseHandler(log logger.Logger, course repository.CourseRepository) *co
 	}
 }
 
+// GetCourse retrieves a specific course by ID.
+// @Summary Get a course
+// @Tags Course
+// @Param courseId path string true "Course ID"
+// @Success 200 {object} model.Course
+// @Failure 500 {string} string
+// @Security Session
+// @Router /courses/{courseId} [get]
 func (c *courseHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
 	sessionValue := r.Context().Value(config.SessionKey)
 	if sessionValue == nil {
@@ -40,6 +48,17 @@ func (c *courseHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(model.ToCourse(iCourse))
 }
 
+// ListCourses returns a paginated list of courses, optionally filtered by name or category.
+// @Summary List courses
+// @Tags Course
+// @Param search query string false "Search by course name or code"
+// @Param category query string false "Filter by category ID"
+// @Param page query int false "Page number (default: 1)"
+// @Param size query int false "Page size (default: 10)"
+// @Success 200 {array} model.Course
+// @Failure 500 {string} string
+// @Security Session
+// @Router /courses [get]
 func (c *courseHandler) ListCourses(w http.ResponseWriter, r *http.Request) {
 	sessionValue := r.Context().Value(config.SessionKey)
 	if sessionValue == nil {

@@ -12,13 +12,12 @@ run:
 	go run ./cmd/server
 
 .PHONY: dev
-run:
+dev:
 	air
 
 .PHONY: fmt
 fmt:
 	go fmt ./...
-
 
 .PHONY: docs
 docs:

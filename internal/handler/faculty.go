@@ -23,6 +23,14 @@ func NewFacultyHandler(log logger.Logger, faculty repository.FacultyRepository) 
 	}
 }
 
+// GetFaculty retrieves a specific faculty by ID.
+// @Summary Get a faculty
+// @Tags Faculty
+// @Param facultyId path string true "Faculty ID"
+// @Success 200 {object} model.Faculty
+// @Failure 500 {string} string
+// @Security Session
+// @Router /faculties/{facultyId} [get]
 func (p *facultyHandler) GetFaculty(w http.ResponseWriter, r *http.Request) {
 	sessionValue := r.Context().Value(config.SessionKey)
 	if sessionValue == nil {
@@ -39,6 +47,14 @@ func (p *facultyHandler) GetFaculty(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(model.ToFaculty(iFaculty))
 }
 
+// ListFaculties returns a list of faculties, optionally filtered by search keyword.
+// @Summary List faculties
+// @Tags Faculty
+// @Param search query string false "Search by faculty name"
+// @Success 200 {array} model.Faculty
+// @Failure 500 {string} string
+// @Security Session
+// @Router /faculties [get]
 func (p *facultyHandler) ListFaculties(w http.ResponseWriter, r *http.Request) {
 	sessionValue := r.Context().Value(config.SessionKey)
 	if sessionValue == nil {
