@@ -72,7 +72,7 @@ func (u *userHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 // @Failure 409 {string} string
 // @Failure 500 {string} string
 // @Security Session
-// @Router /users/{userId} [put]
+// @Router /users/{userId} [patch]
 func (u *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	sessionValue := r.Context().Value(config.SessionKey)
 	if sessionValue == nil {
