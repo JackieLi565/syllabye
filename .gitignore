@@ -5,6 +5,8 @@
 .idea
 .localstack
 .postgres
-
+.terraform
+terraform.tfstate.backup
+terraform.tfstate
 out
 tmp

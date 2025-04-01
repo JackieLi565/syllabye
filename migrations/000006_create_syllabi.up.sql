@@ -8,34 +8,35 @@ create type semester_type as enum (
 
 create table syllabi
 (
-    id           uuid primary key       default gen_random_uuid(),
-    user_id      uuid          not null references users (id),
-    course_id    uuid          not null references courses (id),
-    file         text          not null,
-    content_type text          not null,
-    file_size    integer       not null,
-    year         smallint      not null check (year > 0),
-    semester     semester_type not null,
-    date_added   timestamp     not null default now(),
-    date_synced  timestamp
+    id            uuid primary key       default gen_random_uuid(),
+    user_id       uuid          not null references users (id),
+    course_id     uuid          not null references courses (id),
+    file          text          not null,
+    content_type  text          not null,
+    file_size     integer       not null,
+    year          smallint      not null check (year > 0),
+    semester      semester_type not null,
+    date_added    timestamp     not null default now(),
+    date_modified timestamp     not null default now(),
+    date_synced   timestamp
 );
 
-create index user_id_syllabi_idx on syllabi(user_id);
+create index user_id_syllabi_idx on syllabi (user_id);
 
-create index course_id_syllabi_idx on syllabi(course_id);
+create index course_id_syllabi_idx on syllabi (course_id);
 
 create table syllabus_views
 (
-    syllabus_id uuid      not null references syllabi (id),
-    user_id     uuid      not null references users (id),
+    syllabus_id uuid      not null references syllabi (id) on delete cascade,
+    user_id     uuid      not null references users (id) on delete cascade,
     date_added  timestamp not null default now(),
     constraint syllabus_views_pk primary key (syllabus_id, user_id)
 );
 
 create table syllabus_likes
 (
-    syllabus_id uuid      not null references syllabi (id),
-    user_id     uuid      not null references users (id),
+    syllabus_id uuid      not null references syllabi (id) on delete cascade,
+    user_id     uuid      not null references users (id) on delete cascade,
     is_dislike  bool      not null,
     date_added  timestamp not null default now(),
     constraint syllabus_likes_pk primary key (syllabus_id, user_id)
