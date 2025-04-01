@@ -26,6 +26,16 @@ func NewUserHandler(log logger.Logger, user repository.UserRepository) *userHand
 	}
 }
 
+// GetUser retrieves a user by ID.
+// @Summary Get a user
+// @Tags User
+// @Param userId path string true "User ID"
+// @Success 200 {object} model.User
+// @Failure 400 {string} string
+// @Failure 404 {string} string
+// @Failure 500 {string} string
+// @Security Session
+// @Router /users/{userId} [get]
 func (u *userHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	sessionValue := r.Context().Value(config.SessionKey)
 	if sessionValue == nil {
@@ -50,6 +60,19 @@ func (u *userHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(model.ToUser(iUser))
 }
 
+// UpdateUser modifies a user's profile data.
+// @Summary Update a user
+// @Tags User
+// @Param userId path string true "User ID"
+// @Param body body model.UpdateUser true "Updated user data"
+// @Success 201 {string} string
+// @Header 201 {string} Location "URL to access the updated user"
+// @Failure 400 {string} string
+// @Failure 403 {string} string
+// @Failure 409 {string} string
+// @Failure 500 {string} string
+// @Security Session
+// @Router /users/{userId} [put]
 func (u *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	sessionValue := r.Context().Value(config.SessionKey)
 	if sessionValue == nil {

@@ -25,8 +25,13 @@ import (
 // @securityDefinitions.apiKey Session
 // @in cookie
 // @name syllabye.session
+
+// @securityDefinitions.apikey AWS
+// @in header
+// @name Authorization
+// @description Provide a valid Bearer token. Example: "Bearer {jwt-token}"
 func main() {
-	env := os.Getenv("ENV")
+	env := os.Getenv(config.ENV)
 
 	var log logger.Logger
 	if env == "production" {
@@ -153,8 +158,10 @@ func main() {
 				r.Get("/sync", syllabusHandler.SyncSyllabus)
 
 				r.Route("/reactions", func(r chi.Router) {
+					r.Get("/", syllabusHandler.ListSyllabusLikes)
+
 					r.Post("/", syllabusHandler.SyllabusReaction)
-					r.Get("/", syllabusHandler.DeleteSyllabusReaction)
+					r.Delete("/", syllabusHandler.DeleteSyllabusReaction)
 				})
 			})
 		})

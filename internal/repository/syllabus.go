@@ -22,7 +22,7 @@ type SyllabusRepository interface {
 	DeleteSyllabus(ctx context.Context, userId string, syllabusId string) error
 	UpdateSyllabus(ctx context.Context, userId string, syllabusId string, syllabus model.TSyllabus) error
 	SyncSyllabus(ctx context.Context, syllabusId string) error
-
+	ListSyllabusLikes(ctx context.Context, syllabusId string) ([]model.ISyllabusLike, error)
 	LikeSyllabus(ctx context.Context, userId string, syllabusId string, dislike bool) error
 	DeleteSyllabusLike(ctx context.Context, userId string, syllabusId string) error
 }
@@ -447,6 +447,54 @@ func (s *pgSyllabusRepository) deleteSyllabusLikeQuery(userId string, syllabusId
 
 	qb := util.NewSqlBuilder("delete from syllabus_likes")
 	qb.Concat("where syllabus_id = $%d and user_id = $%d", syllabusUuid, userId)
+
+	return qb.Result(), nil
+}
+
+func (s *pgSyllabusRepository) ListSyllabusLikes(ctx context.Context, syllabusId string) ([]model.ISyllabusLike, error) {
+	result, err := s.listSyllabusLikesQuery(syllabusId)
+	if err != nil {
+		return []model.ISyllabusLike{}, err
+	}
+
+	rows, err := s.db.Pool.Query(ctx, result.Query, result.Args...)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return []model.ISyllabusLike{}, nil
+		}
+
+		s.log.Error("un-handled list syllabus likes query error", logger.Err(err))
+		return []model.ISyllabusLike{}, util.ErrInternal
+	}
+
+	likes := []model.ISyllabusLike{}
+	for rows.Next() {
+		like := model.ISyllabusLike{}
+		err := rows.Scan(
+			&like.SyllabusId,
+			&like.UserId,
+			&like.IsDislike,
+			&like.DateAdded,
+		)
+		if err != nil {
+			s.log.Error(fmt.Sprintf("an error occurred when scanning for syllabus likes on syllabus %s", syllabusId), logger.Err(err))
+			return []model.ISyllabusLike{}, util.ErrInternal
+		}
+
+		likes = append(likes, like)
+	}
+
+	return likes, nil
+}
+
+func (s *pgSyllabusRepository) listSyllabusLikesQuery(syllabusId string) (util.SqlBuilderResult, error) {
+	syllabusUuid, err := s.validateSyllabusId(syllabusId)
+	if err != nil {
+		return util.SqlBuilderResult{}, err
+	}
+
+	qb := util.NewSqlBuilder("select syllabus_id, user_id, is_dislike, date_added from syllabus_likes")
+	qb.Concat("where syllabus_id = $%d", syllabusUuid)
 
 	return qb.Result(), nil
 }

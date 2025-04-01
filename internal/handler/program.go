@@ -23,6 +23,14 @@ func NewProgramHandler(log logger.Logger, program repository.ProgramRepository) 
 	}
 }
 
+// GetProgram retrieves a specific program by ID.
+// @Summary Get a program
+// @Tags Program
+// @Param programId path string true "Program ID"
+// @Success 200 {object} model.Program
+// @Failure 500 {string} string
+// @Security Session
+// @Router /programs/{programId} [get]
 func (p *programHandler) GetProgram(w http.ResponseWriter, r *http.Request) {
 	sessionValue := r.Context().Value(config.SessionKey)
 	if sessionValue == nil {
@@ -39,6 +47,15 @@ func (p *programHandler) GetProgram(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(model.ToProgram(iProgram))
 }
 
+// ListPrograms returns a list of programs, optionally filtered by faculty or name.
+// @Summary List programs
+// @Tags Program
+// @Param faculty query string false "Filter by faculty ID"
+// @Param search query string false "Search by program name or code"
+// @Success 200 {array} model.Program
+// @Failure 500 {string} string
+// @Security Session
+// @Router /programs [get]
 func (p *programHandler) ListPrograms(w http.ResponseWriter, r *http.Request) {
 	sessionValue := r.Context().Value(config.SessionKey)
 	if sessionValue == nil {
