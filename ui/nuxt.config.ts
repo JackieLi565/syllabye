@@ -41,9 +41,12 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      googleAuth: ''
+      googleAuth: '',
+      googleRedirectUrl: '',
+      apiUrl: ''
     }
   },
+  plugins: ['~/plugins/auth.ts'],
   app: {
     head: {
       title: 'Syllabye',

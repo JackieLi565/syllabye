@@ -14,8 +14,9 @@ import {
 } from '@/components/ui/dialog/index'
 
 const config = useRuntimeConfig();
-console.log("GOOGLE AUTH: ", config.public.googleAuth)
-const authUrl = config.public.googleAuth + "http://localhost:3000"
+const { $session, refreshAuth } = useNuxtApp()
+
+const authUrl = config.public.googleAuth + "?redirect=" + config.public.googleRedirectUrl
 </script>
 
 <template>
@@ -32,7 +33,7 @@ const authUrl = config.public.googleAuth + "http://localhost:3000"
         <Separator />
         <div class="space-y-2 py-5">
           <CardDescription>Sign in with your <b>torontomu.ca</b> email</CardDescription>
-          <NuxtLink :to="authUrl">
+          <NuxtLink :to="authUrl" @click="refreshAuth">
             <Button variant="secondary">
               <Icon icon="logos:google-icon" class="h-[1.6rem] w-[1.6rem]"/>
               <span>Sign in with Google</span>
