@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -20,6 +21,11 @@ type UserRepository interface {
 	GetUser(ctx context.Context, userId string) (model.IUser, error)
 	LoginOrRegisterUser(ctx context.Context, openId openid.StandardClaims) (string, error)
 	UpdateUser(ctx context.Context, userId string, entity model.TUser) error
+
+	AddUserCourse(ctx context.Context, userId string, entity model.TUserCourse) error
+	DeleteUserCourse(ctx context.Context, userId string, courseId string) error
+	UpdateUserCourse(ctx context.Context, userId string, courseId string, entity model.TUserCourse) error
+	ListUserCourses(ctx context.Context, userId string, filters model.CourseFilters, paginate util.Paginate) (model.ICourse, error)
 }
 
 type pgUserRepository struct {
@@ -119,7 +125,7 @@ func (u *pgUserRepository) LoginOrRegisterUser(ctx context.Context, openId openi
 				return "", util.ErrInternal
 			}
 
-			u.log.Info("user registered", logger.Err(err))
+			u.log.Info(fmt.Sprintf("user registered with id %s", userId))
 		} else {
 			u.log.Error("user query failed", logger.Err(err))
 			return "", util.ErrInternal
@@ -207,4 +213,60 @@ func (u *pgUserRepository) registerUserQuery(openId openid.StandardClaims) util.
 	qb = qb.Concat("returning id")
 
 	return qb.Result()
+}
+
+func (u *pgUserRepository) AddUserCourse(ctx context.Context, userId string, entity model.TUserCourse) error {
+	return nil
+}
+
+func (u *pgUserRepository) addUserCourseQuery(userId string, entity model.TUserCourse) (util.SqlBuilderResult, error) {
+	courseUuid, err := database.ParsePgUuid(entity.CourseId)
+	if err != nil {
+		return util.SqlBuilderResult{}, err
+	}
+
+	qb := util.NewSqlBuilder("insert into user_courses (user_id, course_id, year_taken, semester_taken)")
+	qb.Concat("values ($%d, $%d, $%d, $%d)", userId, courseUuid, entity.YearTaken, entity.SemesterTaken)
+
+	return qb.Result(), nil
+}
+
+func (u *pgUserRepository) DeleteUserCourse(ctx context.Context, userId string, courseId string) error {
+	return nil
+}
+
+func (u *pgUserRepository) deleteUserCourseQuery(userId string, courseId string) (util.SqlBuilderResult, error) {
+	courseUuid, err := database.ParsePgUuid(courseId)
+	if err != nil {
+		return util.SqlBuilderResult{}, err
+	}
+
+	qb := util.NewSqlBuilder("delete from user_courses")
+	qb.Concat("where user_id = $%d and course_id = $%d", userId, courseUuid)
+
+	return qb.Result(), nil
+}
+
+func (u *pgUserRepository) UpdateUserCourse(ctx context.Context, userId string, courseId string, entity model.TUserCourse) error {
+	return nil
+}
+
+// func (u *pgUserRepository) updateUserCourseQuery(userId string, courseId string, entity model.TUserCourse) (util.SqlBuilderResult, error) {
+// 	courseUuid, err := database.ParsePgUuid(courseId)
+// 	if err != nil {
+// 		return util.SqlBuilderResult{}, err
+// 	}
+
+// 	qb := util.NewSqlBuilder("update user_courses")
+// 	if entity.SemesterTaken != nil {
+
+// 	}
+// }
+
+func (u *pgUserRepository) ListUserCourses(ctx context.Context, userId string, filters model.CourseFilters, paginate util.Paginate) (model.ICourse, error) {
+	return model.ICourse{}, nil
+}
+
+func (u *pgUserRepository) listUserCoursesQuery(userId string, filters model.CourseFilters, paginate util.Paginate) (util.SqlBuilderResult, error) {
+	return util.SqlBuilderResult{}, nil
 }
