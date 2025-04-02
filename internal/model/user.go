@@ -62,3 +62,32 @@ type UpdateUser struct {
 	CurrentYear int16  `json:"currentYear"`
 	Gender      string `json:"gender"`
 }
+
+type IUserCourse struct {
+	UserId        string
+	CourseId      string
+	YearTaken     sql.NullInt16
+	SemesterTaken sql.NullString
+	DateAdded     time.Time
+	DateModified  time.Time
+}
+
+type TUserCourse struct {
+	UserId        string
+	CourseId      string
+	YearTaken     *int16
+	SemesterTaken *string
+	DateAdded     time.Time
+	DateModified  time.Time
+}
+
+type UpdateUserCourse struct {
+	YearTaken     string `json:"yearTaken"`
+	SemesterTaken string `json:"semesterTaken"`
+}
+
+type CreateUserCourse struct {
+	YearTaken     string `json:"yearTaken"`
+	SemesterTaken string `json:"semesterTaken"`
+	CourseId      string `json:"courseId"`
+}

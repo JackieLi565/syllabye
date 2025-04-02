@@ -22,6 +22,8 @@ import (
 
 // @contact.name Jackie Li
 
+// @BasePath /api
+
 // @securityDefinitions.apiKey Session
 // @in cookie
 // @name syllabye.session
@@ -75,6 +77,8 @@ func main() {
 	var basePath string
 	if env == "development" {
 		basePath = "/api"
+
+		r.Use(utilHandler.AllowAllCORSMiddleware)
 
 		r.Route("/openapi", func(r chi.Router) {
 			r.Get("/", func(w http.ResponseWriter, r *http.Request) {

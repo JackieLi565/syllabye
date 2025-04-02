@@ -8,6 +8,7 @@
         },
         "version": "1.0"
     },
+    "basePath": "/api",
     "paths": {
         "/courses": {
             "get": {

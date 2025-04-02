@@ -4,7 +4,7 @@ create table users
     program_id    uuid references programs (id),
     full_name     text      not null,
     nickname      text unique check (nickname ~ '^[a-z0-9._-]{3,30}$'),
-    current_year  smallint check (current_year > 0),
+    current_year  smallint check (current_year > 0 and current_year <= 8),
     gender        text check (gender in ('Male', 'Female', 'Other')),
     email         text      not null unique,
     picture       text,

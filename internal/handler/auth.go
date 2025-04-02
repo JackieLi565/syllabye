@@ -47,12 +47,16 @@ func NewAuthHandler(log logger.Logger, user repository.UserRepository, session r
 // @Router /providers/google [get]
 func (ah *authHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request) {
 	redirectUrl := r.URL.Query().Get("redirect")
-	parsedRedirectUrl, err := url.Parse(redirectUrl)
-	if err != nil {
-		ah.log.Warn("invalid redirect url provided")
+	ah.log.Info(redirectUrl)
+	if redirectUrl == "" {
 		redirectUrl = os.Getenv(config.Domain) + defaultRedirectUri
 	} else {
-		// Redirect must be from the same browser host. In this case its the syllabye domain
+		parsedRedirectUrl, err := url.Parse(redirectUrl)
+		if err != nil {
+			ah.log.Warn("invalid redirect url provided")
+			redirectUrl = os.Getenv(config.Domain) + defaultRedirectUri
+		}
+
 		if parsedRedirectUrl.Host != r.Host && os.Getenv(config.ENV) != "development" {
 			ah.log.Info(fmt.Sprintf("restricted redirect url %s", parsedRedirectUrl.String()))
 			redirectUrl = os.Getenv(config.Domain) + defaultRedirectUri
@@ -148,7 +152,7 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 	}
 
 	sessionExp := time.Now().Add(time.Hour * 24 * 30)
-	http.SetCookie(w, &http.Cookie{
+	cookie := &http.Cookie{
 		Name:     config.SessionCookie,
 		Value:    sessionToken,
 		Path:     "/",
@@ -156,7 +160,14 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
-	})
+	}
+
+	// Only allow in development mode, replace in the future with a dev auth handler
+	if os.Getenv(config.ENV) == "development" {
+		cookie.SameSite = http.SameSiteNoneMode
+	}
+
+	http.SetCookie(w, cookie)
 	if stateClaims.Redirect != "" {
 		http.Redirect(w, r, stateClaims.Redirect, http.StatusFound)
 	} else {

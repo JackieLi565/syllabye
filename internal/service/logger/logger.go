@@ -9,5 +9,9 @@ type Logger interface {
 }
 
 func Err(err error) slog.Attr {
+	if err == nil {
+		slog.String("err", "nil")
+	}
+
 	return slog.String("err", err.Error())
 }

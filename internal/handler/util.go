@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"os"
 
 	"github.com/JackieLi565/syllabye/internal/config"
 	"github.com/google/uuid"
@@ -21,12 +22,28 @@ func (u *utilHandler) JsonMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (U *utilHandler) RequestIdMiddleware(next http.Handler) http.Handler {
+func (u *utilHandler) RequestIdMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestId := uuid.New().String()
 		w.Header().Set("Request-Id", requestId)
 
 		ctx := context.WithValue(r.Context(), config.RequestIdKey, requestId)
 		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (u *utilHandler) AllowAllCORSMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", os.Getenv(config.Domain))
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "*")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
 	})
 }
