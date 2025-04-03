@@ -36,7 +36,6 @@ func ToCourse(c ICourse) Course {
 }
 
 type CourseFilters struct {
-	Name       string
-	Course     string
+	Search     string
 	CategoryId string
 }

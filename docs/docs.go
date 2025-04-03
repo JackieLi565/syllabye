@@ -390,51 +390,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/providers/google/callback": {
-            "get": {
-                "description": "Validates authorization code and state, registers or logs in user, and sets session cookie.",
-                "tags": [
-                    "Authentication"
-                ],
-                "summary": "OpenID provider callback",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Authorization code returned by the OpenID provider",
-                        "name": "code",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "State token for CSRF protection and redirect tracking",
-                        "name": "state",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "302": {
-                        "description": "Redirects to dashboard or original destination",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Invalid or expired state token",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "Token exchange, validation, or session creation failed",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/syllabi": {
             "get": {
                 "security": [
@@ -1029,6 +984,269 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/users/{userId}/courses": {
+            "get": {
+                "security": [
+                    {
+                        "Session": []
+                    }
+                ],
+                "tags": [
+                    "User",
+                    "Course"
+                ],
+                "summary": "List user courses",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by name or course code",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by category ID",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Page size (default: 25)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Course"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Session": []
+                    }
+                ],
+                "tags": [
+                    "User",
+                    "Course"
+                ],
+                "summary": "Add a user course",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User course data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateUserCourse"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{userId}/courses/{courseId}": {
+            "delete": {
+                "security": [
+                    {
+                        "Session": []
+                    }
+                ],
+                "tags": [
+                    "User",
+                    "Course"
+                ],
+                "summary": "Delete a user course",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Course ID",
+                        "name": "courseId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "Session": []
+                    }
+                ],
+                "tags": [
+                    "User",
+                    "Course"
+                ],
+                "summary": "Update a user course",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Course ID",
+                        "name": "courseId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated course data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateUserCourse"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1088,6 +1306,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "year": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.CreateUserCourse": {
+            "type": "object",
+            "properties": {
+                "courseId": {
+                    "type": "string"
+                },
+                "semesterTaken": {
+                    "type": "string"
+                },
+                "yearTaken": {
                     "type": "integer"
                 }
             }
@@ -1216,6 +1448,17 @@ const docTemplate = `{
                 },
                 "program": {
                     "type": "string"
+                }
+            }
+        },
+        "model.UpdateUserCourse": {
+            "type": "object",
+            "properties": {
+                "semesterTaken": {
+                    "type": "string"
+                },
+                "yearTaken": {
+                    "type": "integer"
                 }
             }
         },

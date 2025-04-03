@@ -25,7 +25,7 @@ type UserRepository interface {
 	AddUserCourse(ctx context.Context, userId string, entity model.TUserCourse) error
 	DeleteUserCourse(ctx context.Context, userId string, courseId string) error
 	UpdateUserCourse(ctx context.Context, userId string, courseId string, entity model.TUserCourse) error
-	ListUserCourses(ctx context.Context, userId string, filters model.CourseFilters, paginate util.Paginate) (model.ICourse, error)
+	ListUserCourses(ctx context.Context, userId string, filters model.CourseFilters, paginate util.Paginate) ([]model.ICourse, error)
 }
 
 type pgUserRepository struct {
@@ -216,6 +216,27 @@ func (u *pgUserRepository) registerUserQuery(openId openid.StandardClaims) util.
 }
 
 func (u *pgUserRepository) AddUserCourse(ctx context.Context, userId string, entity model.TUserCourse) error {
+	result, err := u.addUserCourseQuery(userId, entity)
+	if err != nil {
+		return err
+	}
+
+	_, err = u.db.Pool.Exec(ctx, result.Query, result.Args...)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == database.PgCheckErrCode || pgErr.Code == database.PgInvalidTextRepErrCode {
+				return util.ErrMalformed
+			} else if pgErr.Code == database.PgConflictErrCode || pgErr.Code == database.PgFKeyViolationErrCode {
+				return util.ErrConflict
+			}
+		}
+
+		u.log.Error("un-handled add user course query error", logger.Err(err))
+		return util.ErrInternal
+	}
+
+	u.log.Info(fmt.Sprintf("user %s added course %s", userId, entity.CourseId))
 	return nil
 }
 
@@ -232,6 +253,22 @@ func (u *pgUserRepository) addUserCourseQuery(userId string, entity model.TUserC
 }
 
 func (u *pgUserRepository) DeleteUserCourse(ctx context.Context, userId string, courseId string) error {
+	result, err := u.deleteUserCourseQuery(userId, courseId)
+	if err != nil {
+		return err
+	}
+
+	err = u.db.Pool.QueryRow(ctx, result.Query, result.Args...).Scan(new(interface{}))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return util.ErrNotFound
+		}
+
+		u.log.Error("un-handled delete user course query error", logger.Err(err))
+		return util.ErrInternal
+	}
+
+	u.log.Info(fmt.Sprintf("user %s removed course %s", userId, courseId))
 	return nil
 }
 
@@ -243,30 +280,111 @@ func (u *pgUserRepository) deleteUserCourseQuery(userId string, courseId string)
 
 	qb := util.NewSqlBuilder("delete from user_courses")
 	qb.Concat("where user_id = $%d and course_id = $%d", userId, courseUuid)
+	qb.Concat("returning course_id")
 
 	return qb.Result(), nil
 }
 
 func (u *pgUserRepository) UpdateUserCourse(ctx context.Context, userId string, courseId string, entity model.TUserCourse) error {
+	result, err := u.updateUserCourseQuery(userId, courseId, entity)
+	if err != nil {
+		return err
+	}
+
+	err = u.db.Pool.QueryRow(ctx, result.Query, result.Args...).Scan(new(interface{}))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return util.ErrNotFound
+		}
+
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == database.PgCheckErrCode || pgErr.Code == database.PgInvalidTextRepErrCode {
+				return util.ErrMalformed
+			} else if pgErr.Code == database.PgFKeyViolationErrCode {
+				return util.ErrConflict
+			}
+		}
+
+		u.log.Error("un-handled update user course query error", logger.Err(err))
+		return util.ErrInternal
+	}
+
 	return nil
 }
 
-// func (u *pgUserRepository) updateUserCourseQuery(userId string, courseId string, entity model.TUserCourse) (util.SqlBuilderResult, error) {
-// 	courseUuid, err := database.ParsePgUuid(courseId)
-// 	if err != nil {
-// 		return util.SqlBuilderResult{}, err
-// 	}
+func (u *pgUserRepository) updateUserCourseQuery(userId string, courseId string, entity model.TUserCourse) (util.SqlBuilderResult, error) {
+	courseUuid, err := database.ParsePgUuid(courseId)
+	if err != nil {
+		return util.SqlBuilderResult{}, err
+	}
 
-// 	qb := util.NewSqlBuilder("update user_courses")
-// 	if entity.SemesterTaken != nil {
+	qb := util.NewSqlBuilder("update user_courses")
+	qb.Concat("set date_modified = $%d", time.Now())
 
-// 	}
-// }
+	if entity.SemesterTaken != nil {
+		qb.Concat(",semester_taken = $%d", entity.SemesterTaken)
+	}
 
-func (u *pgUserRepository) ListUserCourses(ctx context.Context, userId string, filters model.CourseFilters, paginate util.Paginate) (model.ICourse, error) {
-	return model.ICourse{}, nil
+	if entity.YearTaken != nil {
+		qb.Concat(",year_taken = $%d", entity.YearTaken)
+	}
+
+	qb.Concat("where user_id = $%d and course_id = $%d", userId, courseUuid)
+	qb.Concat("returning course_id")
+
+	return qb.Result(), nil
 }
 
-func (u *pgUserRepository) listUserCoursesQuery(userId string, filters model.CourseFilters, paginate util.Paginate) (util.SqlBuilderResult, error) {
-	return util.SqlBuilderResult{}, nil
+func (u *pgUserRepository) ListUserCourses(ctx context.Context, userId string, filters model.CourseFilters, paginate util.Paginate) ([]model.ICourse, error) {
+	result := u.listUserCoursesQuery(userId, filters, paginate)
+
+	rows, err := u.db.Pool.Query(context.TODO(), result.Query, result.Args...)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return []model.ICourse{}, nil
+		}
+
+		u.log.Error("un-handled list user course query error", logger.Err(err))
+		return []model.ICourse{}, util.ErrInternal
+	}
+
+	var courses []model.ICourse
+	for rows.Next() {
+		course := model.ICourse{}
+		err := rows.Scan(
+			&course.Id, &course.CategoryId, &course.Title, &course.Description, &course.Uri,
+			&course.Course, &course.DateAdded,
+		)
+		if err != nil {
+			u.log.Error("scan internal course error", logger.Err(err))
+			return courses, util.ErrInternal
+		}
+		courses = append(courses, course)
+	}
+
+	return courses, nil
+}
+
+func (u *pgUserRepository) listUserCoursesQuery(userId string, filters model.CourseFilters, paginate util.Paginate) util.SqlBuilderResult {
+	qb := util.NewSqlBuilder(
+		"select id, category_id, title, description, uri, course, date_added",
+		"from courses",
+	)
+	qb.Concat("where exists (")
+	qb.Concat("select 1 from user_courses uc where uc.course_id = id and uc.user_id = $%d", userId)
+	qb.Concat(")")
+
+	if filters.CategoryId != "" {
+		qb.Concat("and category_id = $%d", filters.CategoryId)
+	}
+	if filters.Search != "" {
+		qb.Concat("and course ilike $%d or title ilike $%d", "%"+filters.Search+"%", "%"+filters.Search+"%")
+	}
+
+	qb.Concat("limit $%d", paginate.Size)
+	offset := (paginate.Page - 1) * paginate.Size
+	qb.Concat("offset $%d", offset)
+
+	return qb.Result()
 }

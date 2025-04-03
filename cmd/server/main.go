@@ -134,6 +134,16 @@ func main() {
 			r.Route("/{userId}", func(r chi.Router) {
 				r.Get("/", userHandler.GetUser)
 				r.Patch("/", userHandler.UpdateUser)
+
+				r.Route("/courses", func(r chi.Router) {
+					r.Post("/", userHandler.AddUserCourse)
+					r.Get("/", userHandler.ListUserCourses)
+
+					r.Route("/{courseId}", func(r chi.Router) {
+						r.Patch("/", userHandler.UpdateUserCourse)
+						r.Delete("/", userHandler.DeleteUserCourse)
+					})
+				})
 			})
 		})
 
