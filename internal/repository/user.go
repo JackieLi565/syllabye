@@ -25,7 +25,7 @@ type UserRepository interface {
 	AddUserCourse(ctx context.Context, userId string, entity model.TUserCourse) error
 	DeleteUserCourse(ctx context.Context, userId string, courseId string) error
 	UpdateUserCourse(ctx context.Context, userId string, courseId string, entity model.TUserCourse) error
-	ListUserCourses(ctx context.Context, userId string, filters model.CourseFilters, paginate util.Paginate) ([]model.ICourse, error)
+	ListUserCourses(ctx context.Context, userId string, filters model.CourseFilters, paginate util.Paginate) ([]model.IUserCourse, error)
 }
 
 type pgUserRepository struct {
@@ -336,28 +336,32 @@ func (u *pgUserRepository) updateUserCourseQuery(userId string, courseId string,
 	return qb.Result(), nil
 }
 
-func (u *pgUserRepository) ListUserCourses(ctx context.Context, userId string, filters model.CourseFilters, paginate util.Paginate) ([]model.ICourse, error) {
+func (u *pgUserRepository) ListUserCourses(ctx context.Context, userId string, filters model.CourseFilters, paginate util.Paginate) ([]model.IUserCourse, error) {
 	result := u.listUserCoursesQuery(userId, filters, paginate)
 
 	rows, err := u.db.Pool.Query(context.TODO(), result.Query, result.Args...)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return []model.ICourse{}, nil
+			return []model.IUserCourse{}, nil
 		}
 
 		u.log.Error("un-handled list user course query error", logger.Err(err))
-		return []model.ICourse{}, util.ErrInternal
+		return []model.IUserCourse{}, util.ErrInternal
 	}
 
-	var courses []model.ICourse
+	var courses []model.IUserCourse
 	for rows.Next() {
-		course := model.ICourse{}
+		course := model.IUserCourse{}
 		err := rows.Scan(
-			&course.Id, &course.CategoryId, &course.Title, &course.Description, &course.Uri,
-			&course.Course, &course.DateAdded,
+			&course.UserId,
+			&course.CourseId,
+			&course.Title,
+			&course.Course,
+			&course.YearTaken,
+			&course.SemesterTaken,
 		)
 		if err != nil {
-			u.log.Error("scan internal course error", logger.Err(err))
+			u.log.Error("scan internal user course error", logger.Err(err))
 			return courses, util.ErrInternal
 		}
 		courses = append(courses, course)
@@ -368,18 +372,17 @@ func (u *pgUserRepository) ListUserCourses(ctx context.Context, userId string, f
 
 func (u *pgUserRepository) listUserCoursesQuery(userId string, filters model.CourseFilters, paginate util.Paginate) util.SqlBuilderResult {
 	qb := util.NewSqlBuilder(
-		"select id, category_id, title, description, uri, course, date_added",
-		"from courses",
+		"select uc.user_id, uc.course_id, c.title, c.course, uc.year_taken, uc.semester_taken",
+		"from user_courses uc",
+		"inner join courses c on c.id = uc.course_id",
 	)
-	qb.Concat("where exists (")
-	qb.Concat("select 1 from user_courses uc where uc.course_id = id and uc.user_id = $%d", userId)
-	qb.Concat(")")
+	qb.Concat("where uc.user_id = $%d", userId)
 
 	if filters.CategoryId != "" {
-		qb.Concat("and category_id = $%d", filters.CategoryId)
+		qb.Concat("and c.category_id = $%d", filters.CategoryId)
 	}
 	if filters.Search != "" {
-		qb.Concat("and course ilike $%d or title ilike $%d", "%"+filters.Search+"%", "%"+filters.Search+"%")
+		qb.Concat("and c.course ilike $%d or c.title ilike $%d", "%"+filters.Search+"%", "%"+filters.Search+"%")
 	}
 
 	qb.Concat("limit $%d", paginate.Size)

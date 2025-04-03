@@ -49,7 +49,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Page size (default: 10)",
+                        "description": "Page size (default: 25)",
                         "name": "size",
                         "in": "query"
                     }
@@ -244,6 +244,23 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/logout": {
+            "get": {
+                "description": "Removes the users session cookie if exists.",
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Logout user session",
+                "responses": {
+                    "302": {
+                        "description": "Redirects to root page",
                         "schema": {
                             "type": "string"
                         }
@@ -822,54 +839,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/syllabi/{syllabusId}/sync": {
-            "get": {
-                "security": [
-                    {
-                        "AWS": []
-                    }
-                ],
-                "tags": [
-                    "Syllabus"
-                ],
-                "summary": "Sync a syllabus",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Syllabus ID",
-                        "name": "syllabusId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "headers": {
-                            "Location": {
-                                "type": "string",
-                                "description": "URL to access the synced syllabus"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/users/{userId}": {
             "get": {
                 "security": [
@@ -993,8 +962,7 @@ const docTemplate = `{
                     }
                 ],
                 "tags": [
-                    "User",
-                    "Course"
+                    "User"
                 ],
                 "summary": "List user courses",
                 "parameters": [
@@ -1036,7 +1004,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Course"
+                                "$ref": "#/definitions/model.UserCourse"
                             }
                         }
                     },
@@ -1055,8 +1023,7 @@ const docTemplate = `{
                     }
                 ],
                 "tags": [
-                    "User",
-                    "Course"
+                    "User"
                 ],
                 "summary": "Add a user course",
                 "parameters": [
@@ -1119,8 +1086,7 @@ const docTemplate = `{
                     }
                 ],
                 "tags": [
-                    "User",
-                    "Course"
+                    "User"
                 ],
                 "summary": "Delete a user course",
                 "parameters": [
@@ -1179,8 +1145,7 @@ const docTemplate = `{
                     }
                 ],
                 "tags": [
-                    "User",
-                    "Course"
+                    "User"
                 ],
                 "summary": "Update a user course",
                 "parameters": [
@@ -1490,15 +1455,29 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "model.UserCourse": {
+            "type": "object",
+            "properties": {
+                "course": {
+                    "type": "string"
+                },
+                "courseId": {
+                    "type": "string"
+                },
+                "semesterTaken": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "yearTaken": {
+                    "type": "integer"
+                }
+            }
         }
     },
     "securityDefinitions": {
-        "AWS": {
-            "description": "Provide a valid Bearer token. Example: \"Bearer {jwt-token}\"",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
-        },
         "Session": {
             "type": "apiKey",
             "name": "syllabye.session",

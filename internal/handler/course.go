@@ -54,7 +54,7 @@ func (c *courseHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
 // @Param search query string false "Search by course name or code"
 // @Param category query string false "Filter by category ID"
 // @Param page query int false "Page number (default: 1)"
-// @Param size query int false "Page size (default: 10)"
+// @Param size query int false "Page size (default: 25)"
 // @Success 200 {array} model.Course
 // @Failure 500 {string} string
 // @Security Session

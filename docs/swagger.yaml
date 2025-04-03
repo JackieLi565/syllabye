@@ -156,6 +156,19 @@ definitions:
       programId:
         type: string
     type: object
+  model.UserCourse:
+    properties:
+      course:
+        type: string
+      courseId:
+        type: string
+      semesterTaken:
+        type: string
+      title:
+        type: string
+      yearTaken:
+        type: integer
+    type: object
 info:
   contact:
     name: Jackie Li
@@ -178,7 +191,7 @@ paths:
         in: query
         name: page
         type: integer
-      - description: 'Page size (default: 10)'
+      - description: 'Page size (default: 25)'
         in: query
         name: size
         type: integer
@@ -306,6 +319,17 @@ paths:
       summary: Get a faculty
       tags:
       - Faculty
+  /logout:
+    get:
+      description: Removes the users session cookie if exists.
+      responses:
+        "302":
+          description: Redirects to root page
+          schema:
+            type: string
+      summary: Logout user session
+      tags:
+      - Authentication
   /me:
     get:
       description: Validates the session cookie and returns session payload if authenticated.
@@ -666,36 +690,6 @@ paths:
       summary: List syllabus reactions
       tags:
       - Syllabus
-  /syllabi/{syllabusId}/sync:
-    get:
-      parameters:
-      - description: Syllabus ID
-        in: path
-        name: syllabusId
-        required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-          headers:
-            Location:
-              description: URL to access the synced syllabus
-              type: string
-          schema:
-            type: string
-        "404":
-          description: Not Found
-          schema:
-            type: string
-        "500":
-          description: Internal Server Error
-          schema:
-            type: string
-      security:
-      - AWS: []
-      summary: Sync a syllabus
-      tags:
-      - Syllabus
   /users/{userId}:
     get:
       parameters:
@@ -798,7 +792,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.Course'
+              $ref: '#/definitions/model.UserCourse'
             type: array
         "500":
           description: Internal Server Error
@@ -809,7 +803,6 @@ paths:
       summary: List user courses
       tags:
       - User
-      - Course
     post:
       parameters:
       - description: User ID
@@ -849,7 +842,6 @@ paths:
       summary: Add a user course
       tags:
       - User
-      - Course
   /users/{userId}/courses/{courseId}:
     delete:
       parameters:
@@ -889,7 +881,6 @@ paths:
       summary: Delete a user course
       tags:
       - User
-      - Course
     patch:
       parameters:
       - description: User ID
@@ -938,13 +929,7 @@ paths:
       summary: Update a user course
       tags:
       - User
-      - Course
 securityDefinitions:
-  AWS:
-    description: 'Provide a valid Bearer token. Example: "Bearer {jwt-token}"'
-    in: header
-    name: Authorization
-    type: apiKey
   Session:
     in: cookie
     name: syllabye.session

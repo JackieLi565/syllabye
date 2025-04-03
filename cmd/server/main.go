@@ -27,11 +27,6 @@ import (
 // @securityDefinitions.apiKey Session
 // @in cookie
 // @name syllabye.session
-
-// @securityDefinitions.apikey AWS
-// @in header
-// @name Authorization
-// @description Provide a valid Bearer token. Example: "Bearer {jwt-token}"
 func main() {
 	env := os.Getenv(config.ENV)
 
@@ -96,6 +91,8 @@ func main() {
 	}
 
 	r.Route(basePath, func(r chi.Router) {
+		r.Get("/logout", authHandler.Logout)
+
 		r.Route("/providers/google", func(r chi.Router) {
 			if env == "development" {
 				r.Get("/", authHandler.DevAuthorization)
