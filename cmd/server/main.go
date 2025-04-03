@@ -74,7 +74,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(utilHandler.RequestIdMiddleware)
 
-	var basePath string
+	basePath := "/"
 	if env == "development" {
 		basePath = "/api"
 
@@ -93,14 +93,16 @@ func main() {
 				httpSwagger.URL("http://localhost:8000/openapi/doc.json"),
 			))
 		})
-	} else {
-		basePath = "/"
 	}
 
 	r.Route(basePath, func(r chi.Router) {
 		r.Route("/providers/google", func(r chi.Router) {
-			r.Get("/", authHandler.ConsentUrlRedirect)
-			r.Get("/callback", authHandler.ProviderCallback)
+			if env == "development" {
+				r.Get("/", authHandler.DevAuthorization)
+			} else {
+				r.Get("/", authHandler.ConsentUrlRedirect)
+				r.Get("/callback", authHandler.ProviderCallback)
+			}
 		})
 
 		r.Route("/me", func(r chi.Router) {
