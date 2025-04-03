@@ -373,15 +373,6 @@ func (s *syllabusHandler) ListSyllabusLikes(w http.ResponseWriter, r *http.Reque
 }
 
 // SyncSyllabus triggers synchronization of a syllabus resource.
-// @Summary Sync a syllabus
-// @Tags Syllabus
-// @Param syllabusId path string true "Syllabus ID"
-// @Success 204 {string} string
-// @Header 204 {string} Location "URL to access the synced syllabus"
-// @Failure 404 {string} string
-// @Failure 500 {string} string
-// @Security AWS
-// @Router /syllabi/{syllabusId}/sync [get]
 func (s *syllabusHandler) SyncSyllabus(w http.ResponseWriter, r *http.Request) {
 	// TODO AWS JWT Auth
 

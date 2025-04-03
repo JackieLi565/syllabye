@@ -102,7 +102,7 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 	}
 	if splitEmail[1] != "torontomu.ca" {
 		ah.log.Info(fmt.Sprintf("unauthorized login attempt with email %s", standardClaims.Email))
-		http.Redirect(w, r, "/sorry", http.StatusFound) // TODO: unauthorized route
+		http.Redirect(w, r, os.Getenv(config.Domain)+"/sorry", http.StatusFound)
 		return
 	}
 
@@ -129,7 +129,8 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 	}
 
 	sessionExp := time.Now().Add(time.Hour * 24 * 30)
-	cookie := &http.Cookie{
+
+	http.SetCookie(w, &http.Cookie{
 		Name:     config.SessionCookie,
 		Value:    sessionToken,
 		Path:     "/",
@@ -137,14 +138,35 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
-	}
-
-	http.SetCookie(w, cookie)
+	})
 	if stateClaims.Redirect != "" {
 		http.Redirect(w, r, stateClaims.Redirect, http.StatusFound)
 	} else {
 		http.Redirect(w, r, os.Getenv(config.Domain)+defaultRedirectUri, http.StatusFound)
 	}
+
+	ah.log.Info(fmt.Sprintf("user %s has logged in with session token %s", userId, sessionToken))
+}
+
+// Logout removes/invalidates the user's session cookie
+// @Summary Logout user session
+// @Description Removes the users session cookie if exists.
+// @Tags Authentication
+// @Success 302 {string} string "Redirects to root page"
+// @Router /logout [get]
+func (ah *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     config.SessionCookie,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	http.Redirect(w, r, os.Getenv(config.Domain)+defaultRedirectUri, http.StatusFound)
+	ah.log.Info("a user has logged out")
 }
 
 // SessionCheck verifies the user's session cookie and returns session information if valid.

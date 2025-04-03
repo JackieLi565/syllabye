@@ -147,15 +147,15 @@ func (u *userHandler) AddUserCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if body.CourseId == "" || body.SemesterTaken == "" || body.YearTaken == 0 {
+	if body.CourseId == "" {
 		http.Error(w, "Invalid or missing request body fields.", http.StatusBadRequest)
 		return
 	}
 
 	err := u.userRepo.AddUserCourse(r.Context(), session.UserId, model.TUserCourse{
 		CourseId:      body.CourseId,
-		YearTaken:     &body.YearTaken,
-		SemesterTaken: &body.SemesterTaken,
+		YearTaken:     body.YearTaken,
+		SemesterTaken: body.SemesterTaken,
 	})
 	if err != nil {
 		if errors.Is(err, util.ErrMalformed) {
@@ -279,7 +279,7 @@ func (u *userHandler) UpdateUserCourse(w http.ResponseWriter, r *http.Request) {
 // @Param category query string false "Filter by category ID"
 // @Param page query string false "Page number (default: 1)"
 // @Param size query string false "Page size (default: 25)"
-// @Success 200 {array} model.Course
+// @Success 200 {array} model.UserCourse
 // @Failure 500 {string} string
 // @Security Session
 // @Router /users/{userId}/courses [get]
@@ -307,11 +307,17 @@ func (u *userHandler) ListUserCourses(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "An internal error occurred.", http.StatusInternalServerError)
 	}
 
-	publicCourses := make([]model.Course, 0, len(courses))
+	userCourses := make([]model.UserCourse, 0, len(courses))
 	for _, course := range courses {
-		publicCourses = append(publicCourses, model.ToCourse(course))
+		userCourses = append(userCourses, model.UserCourse{
+			CourseId:      course.CourseId,
+			Title:         course.Title,
+			Course:        course.Course,
+			YearTaken:     course.YearTaken.Int16,
+			SemesterTaken: course.SemesterTaken.String,
+		})
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(publicCourses)
+	json.NewEncoder(w).Encode(userCourses)
 }
