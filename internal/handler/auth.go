@@ -46,22 +46,8 @@ func NewAuthHandler(log logger.Logger, user repository.UserRepository, session r
 // @Failure 500 {string} string "Unable to continue to OpenID provider"
 // @Router /providers/google [get]
 func (ah *authHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request) {
-	redirectUrl := r.URL.Query().Get("redirect")
+	redirectUrl := ah.getValidRedirectUrl(r.URL.Query().Get("redirect"), r.Host)
 	ah.log.Info(redirectUrl)
-	if redirectUrl == "" {
-		redirectUrl = os.Getenv(config.Domain) + defaultRedirectUri
-	} else {
-		parsedRedirectUrl, err := url.Parse(redirectUrl)
-		if err != nil {
-			ah.log.Warn("invalid redirect url provided")
-			redirectUrl = os.Getenv(config.Domain) + defaultRedirectUri
-		}
-
-		if parsedRedirectUrl.Host != r.Host && os.Getenv(config.ENV) != "development" {
-			ah.log.Info(fmt.Sprintf("restricted redirect url %s", parsedRedirectUrl.String()))
-			redirectUrl = os.Getenv(config.Domain) + defaultRedirectUri
-		}
-	}
 
 	sessionCookie, err := r.Cookie(config.SessionCookie)
 	if err == nil {
@@ -84,16 +70,7 @@ func (ah *authHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
-// ProviderCallback handles the OAuth2 callback from the OpenID provider.
-// @Summary OpenID provider callback
-// @Description Validates authorization code and state, registers or logs in user, and sets session cookie.
-// @Tags Authentication
-// @Param code query string true "Authorization code returned by the OpenID provider"
-// @Param state query string true "State token for CSRF protection and redirect tracking"
-// @Success 302 {string} string "Redirects to dashboard or original destination"
-// @Failure 401 {string} string "Invalid or expired state token"
-// @Failure 500 {string} string "Token exchange, validation, or session creation failed"
-// @Router /providers/google/callback [get]
+// ProviderCallback handles the OAuth2 internal callback from the OpenID provider.
 func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	code := query.Get("code")
@@ -160,11 +137,6 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
-	}
-
-	// Only allow in development mode, replace in the future with a dev auth handler
-	if os.Getenv(config.ENV) == "development" {
-		cookie.SameSite = http.SameSiteNoneMode
 	}
 
 	http.SetCookie(w, cookie)
@@ -271,4 +243,64 @@ func (ah *authHandler) decodeSessionToken(tokenString string) (model.Session, er
 	}
 
 	return session, nil
+}
+
+func (ah *authHandler) getValidRedirectUrl(redirectUrl string, host string) string {
+	defaultUrl := os.Getenv(config.Domain) + defaultRedirectUri
+	if redirectUrl == "" {
+		return defaultUrl
+	}
+
+	parsedRedirectUrl, err := url.Parse(redirectUrl)
+	if err != nil {
+		ah.log.Info("invalid redirect url provided")
+		return defaultUrl
+	}
+
+	if parsedRedirectUrl.Host != host {
+		ah.log.Info(fmt.Sprintf("restricted redirect url %s", parsedRedirectUrl.String()))
+		return defaultUrl
+	}
+
+	return parsedRedirectUrl.String()
+}
+
+func (ah *authHandler) DevAuthorization(w http.ResponseWriter, r *http.Request) {
+	if os.Getenv(config.ENV) != "development" {
+		ah.log.Error("development authorization handler used outside of development")
+		http.Error(w, "We are unable to handle your login request at this time. Please try again next time.", http.StatusInternalServerError)
+		return
+	}
+
+	redirectUrl := ah.getValidRedirectUrl(r.URL.Query().Get("redirect"), r.Host)
+
+	userId, err := ah.userRepo.LoginOrRegisterUser(r.Context(), openid.StandardClaims{
+		Name:  "System Admin (Development)",
+		Email: "sys.admin@syllabye.ca",
+	})
+	if err != nil {
+		http.Error(w, "Dev authorization failed.", http.StatusInternalServerError)
+		return
+	}
+
+	sessionToken, err := ah.encodeSessionToken(userId, "")
+	if err != nil {
+		ah.log.Error("failed to encode session token", logger.Err(err))
+		http.Error(w, "Unable to create admin session.", http.StatusInternalServerError)
+		return
+	}
+
+	sessionExp := time.Now().Add(time.Hour * 24 * 30 * 12) // 1 Year
+	cookie := &http.Cookie{
+		Name:     config.SessionCookie,
+		Value:    sessionToken,
+		Path:     "/",
+		Expires:  sessionExp,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	}
+
+	http.SetCookie(w, cookie)
+	http.Redirect(w, r, redirectUrl, http.StatusFound)
 }
