@@ -67,8 +67,7 @@ func (c *courseHandler) ListCourses(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
 	queryFilters := model.CourseFilters{
-		Name:       query.Get("search"),
-		Course:     query.Get("search"),
+		Search:     query.Get("search"),
 		CategoryId: query.Get("category"),
 	}
 	paginateOptions := util.NewPaginate(query.Get("page"), query.Get("size"))

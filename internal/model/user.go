@@ -63,6 +63,14 @@ type UpdateUser struct {
 	Gender      string `json:"gender"`
 }
 
+type UserCourse struct {
+	Title         string  `json:"title"`
+	Course        string  `json:"course"`
+	CourseId      string  `json:"courseId"`
+	YearTaken     *int16  `json:"yearTaken"`
+	SemesterTaken *string `json:"semesterTaken"`
+}
+
 type IUserCourse struct {
 	UserId        string
 	CourseId      string
@@ -82,12 +90,12 @@ type TUserCourse struct {
 }
 
 type UpdateUserCourse struct {
-	YearTaken     string `json:"yearTaken"`
+	YearTaken     int16  `json:"yearTaken"`
 	SemesterTaken string `json:"semesterTaken"`
 }
 
 type CreateUserCourse struct {
-	YearTaken     string `json:"yearTaken"`
+	YearTaken     int16  `json:"yearTaken"`
 	SemesterTaken string `json:"semesterTaken"`
 	CourseId      string `json:"courseId"`
 }

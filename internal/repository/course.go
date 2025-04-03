@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/service/database"
@@ -107,38 +106,19 @@ func (c *pgCourseRepository) listCoursesQuery(filters model.CourseFilters, pagin
 	qb := util.NewSqlBuilder(
 		"select id, category_id, title, description, uri, course, date_added",
 		"from courses",
+		"where 1 = 1",
 	)
-	queryFilters := []string{}
-	args := []any{}
-
-	if filters.Name != "" {
-		queryFilters = append(queryFilters, "title ilike $%d")
-		args = append(args, "%"+filters.Name+"%")
-	}
 
 	if filters.CategoryId != "" {
-		var categoryUUID pgtype.UUID
-		if err := categoryUUID.Scan(filters.CategoryId); err != nil {
-			c.log.Warn("invalid category id")
-			return util.SqlBuilderResult{}, fmt.Errorf("invalid category id %s", filters.CategoryId)
-		}
-		queryFilters = append(queryFilters, "category_id = $%d")
-		args = append(args, categoryUUID)
+		qb.Concat("and category_id = $%d", filters.CategoryId)
 	}
-
-	if filters.Course != "" {
-		queryFilters = append(queryFilters, "course ilike $%d")
-		args = append(args, filters.Course+"%")
-	}
-
-	if len(queryFilters) > 0 {
-		orClause := "(" + strings.Join(queryFilters, " or ") + ")"
-		qb = qb.Concat("where "+orClause, args...)
+	if filters.Search != "" {
+		qb.Concat("and course ilike $%d or title ilike $%d", "%"+filters.Search+"%", "%"+filters.Search+"%")
 	}
 
 	qb.Concat("limit $%d", paginate.Size)
 	offset := (paginate.Page - 1) * paginate.Size
 	qb.Concat("offset $%d", offset)
 
-	return qb.Result(), nil
+	return qb.Result(), nil // TODO: remove non-existent errors from API
 }
