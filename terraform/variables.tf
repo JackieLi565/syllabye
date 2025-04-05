@@ -12,6 +12,8 @@ variable "aws_iam_endpoint" {}
 
 variable "aws_lambda_endpoint" {}
 
+variable "aws_sqs_endpoint" {}
+
 variable "env" {
   default = "development"
 }
