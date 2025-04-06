@@ -101,3 +101,7 @@ type CreateUserCourse struct {
 	SemesterTaken *string `json:"semesterTaken"`
 	CourseId      string  `json:"courseId"`
 }
+
+type UserNicknameExists struct {
+	Exists bool `json:"exists"`
+}
