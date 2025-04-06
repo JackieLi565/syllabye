@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Toaster from '@/components/ui/toast/Toaster.vue'
+
 useHead({
   title: 'Syllabye',
   meta: [
@@ -8,6 +10,7 @@ useHead({
 </script>
 
 <template>
+  <Toaster />
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>

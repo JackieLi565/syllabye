@@ -8,7 +8,7 @@ export default defineNuxtPlugin(nuxtApp => {
     if (session.value?.userId) {
       const event = useRequestEvent();
       try {
-        const userData = await $fetch<User | null>(`/api/auth/user/${session.value.userId}`, {
+        const userData = await $fetch<User | null>(`/api/user/${session.value.userId}`, {
           headers: event?.node.req.headers.cookie
             ? { cookie: event.node.req.headers.cookie }
             : undefined,
