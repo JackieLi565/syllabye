@@ -11,4 +11,12 @@ export interface User {
   nickname?: string
   picture: string
   programId?: string
+  newuser: boolean
+}
+
+export interface Program {
+  faculty: string
+  id: string
+  name: string
+  uri: string
 }

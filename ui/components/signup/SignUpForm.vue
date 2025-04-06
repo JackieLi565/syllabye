@@ -17,8 +17,12 @@ import { Separator } from '@/components/ui/separator'
 import DialogContent from '../ui/dialog/DialogContent.vue'
 import { cn } from '@/lib/utils'
 import { Combobox, ComboboxAnchor, ComboboxEmpty, ComboboxGroup, ComboboxInput, ComboboxItem, ComboboxItemIndicator, ComboboxList, ComboboxTrigger } from '@/components/ui/combobox'
-import { Check, ChevronsUpDown, Search } from 'lucide-vue-next'
+import { Check, ChevronsUpDown } from 'lucide-vue-next'
 import { ref } from 'vue'
+
+const props = defineProps<{
+  open: boolean
+}>()
 
 const formSchema = toTypedSchema(z.object({
   username: z.string().min(2).max(50),
@@ -35,17 +39,15 @@ const onSubmit = form.handleSubmit((values) => {
   console.log('Form submitted!', values)
 })
 
-const programs = [
-  { label: 'English', value: 'en' },
-  { label: 'French', value: 'fr' },
-  { label: 'German', value: 'de' },
-  { label: 'Spanish', value: 'es' },
-  { label: 'Portuguese', value: 'pt' },
-  { label: 'Russian', value: 'ru' },
-  { label: 'Japanese', value: 'ja' },
-  { label: 'Korean', value: 'ko' },
-  { label: 'Chinese', value: 'zh' },
-] as const
+const { data: programsData } = await useAsyncData(
+  'programs',
+  () => $fetch('/api/programs/programs')
+)
+
+const programs = programsData.value?.map(program => ({
+  label: program.name,
+  value: program.id,
+}))
 
 const years = [
   { label: '1st Year', value: '1' },
@@ -63,12 +65,11 @@ const { handleSubmit, setFieldValue } = useForm({
   },
 })
 
-const value = ref<typeof programs[0]>()
+const value = ref<typeof programs>()
 </script>
 
 <template>
-  <Dialog>
-    <DialogTrigger>Sign Up Form</DialogTrigger>
+  <Dialog :open="props.open">
     <DialogContent 
       class="[&>button:last-child]:hidden"
       @interact-outside="(event) => event.preventDefault()" 
@@ -138,7 +139,7 @@ const value = ref<typeof programs[0]>()
                   </ComboboxAnchor>
                 </FormControl>
   
-                <ComboboxList>
+                <ComboboxList class="overflow-y-auto max-h-64 w-60 ml-9">
                   <ComboboxEmpty>
                     Nothing found.
                   </ComboboxEmpty>
@@ -153,10 +154,6 @@ const value = ref<typeof programs[0]>()
                       }"
                     >
                       {{ program.label }}
-  
-                      <ComboboxItemIndicator>
-                        <Check :class="cn('ml-auto h-4 w-4')" />
-                      </ComboboxItemIndicator>
                     </ComboboxItem>
                   </ComboboxGroup>
                 </ComboboxList>
@@ -174,7 +171,7 @@ const value = ref<typeof programs[0]>()
                 <Select v-bind="componentField">
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a verified email to display" />
+                      <SelectValue placeholder="Select year..." />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import SkeletonPage from '~/components/loading/SkeletonPage.vue';
-import type { Session, User } from '~/types/types';
+import SignUpForm from '~/components/signup/SignUpForm.vue';
+const user = await useUser()
+const newUser = ref(user.value?.newuser)
 </script>
 
 <template>
@@ -8,11 +9,7 @@ import type { Session, User } from '~/types/types';
     <NavigationBar/>
     <NuxtLoadingIndicator :color="true" :height="5" />
     <div class="md:mt-14 flex-grow">
-      <template>
-        <!-- <div v-if="!isAuthResolved">Loading...</div>
-        <div v-else-if="session">Welcome back! {{ user?.fullname }}</div>
-        <div v-else>Please log in</div> -->
-      </template>
+      <SignUpForm :open="newUser ? true : false"/>
       <slot />
     </div>
     <Footer/>

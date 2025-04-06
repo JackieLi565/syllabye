@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SyllabyeLogo from '@/components/logo/SyllabyeLogo.vue'
-const user = await useUser();
+import ProfileDropdown from '../user/ProfileDropdown.vue';
 const session = await useSession();
 </script>
 
@@ -9,7 +9,7 @@ const session = await useSession();
     <SyllabyeLogo size="small" :slogan="false"/>
     <div class="flex items-center space-x-2">
       <LoginButton v-if="!session"/>
-      <h1 v-else>{{ user?.fullname }}</h1>
+      <ProfileDropdown v-else/>
       <ThemeButton />
     </div>
   </nav>
