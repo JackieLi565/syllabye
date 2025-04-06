@@ -14,7 +14,7 @@ create table syllabi
     file          text          not null,
     content_type  text          not null,
     file_size     integer       not null,
-    year          smallint      not null check (year > 0 and <= 5),
+    year          smallint      not null check (year > 0),
     semester      semester_type not null,
     date_added    timestamp     not null default now(),
     date_modified timestamp     not null default now(),
