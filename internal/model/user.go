@@ -57,7 +57,7 @@ type TUser struct {
 }
 
 type UpdateUser struct {
-	ProgramId   string `json:"program"`
+	ProgramId   string `json:"programId"`
 	Nickname    string `json:"nickname"`
 	CurrentYear int16  `json:"currentYear"`
 	Gender      string `json:"gender"`
