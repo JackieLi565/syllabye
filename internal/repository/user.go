@@ -21,7 +21,7 @@ type UserRepository interface {
 	GetUser(ctx context.Context, userId string) (model.IUser, error)
 	LoginOrRegisterUser(ctx context.Context, openId openid.StandardClaims) (string, error)
 	UpdateUser(ctx context.Context, userId string, entity model.TUser) error
-
+	SearchUserNickname(ctx context.Context, nickname string) (bool, error)
 	AddUserCourse(ctx context.Context, userId string, entity model.TUserCourse) error
 	DeleteUserCourse(ctx context.Context, userId string, courseId string) error
 	UpdateUserCourse(ctx context.Context, userId string, courseId string, entity model.TUserCourse) error
@@ -388,6 +388,30 @@ func (u *pgUserRepository) listUserCoursesQuery(userId string, filters model.Cou
 	qb.Concat("limit $%d", paginate.Size)
 	offset := (paginate.Page - 1) * paginate.Size
 	qb.Concat("offset $%d", offset)
+
+	return qb.Result()
+}
+
+func (u *pgUserRepository) SearchUserNickname(ctx context.Context, nickname string) (bool, error) {
+	result := u.searchNicknameQuery(nickname)
+
+	var existsFlag int8
+	err := u.db.Pool.QueryRow(ctx, result.Query, result.Args...).Scan(&existsFlag)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+
+		u.log.Error("un-handled search nickname query error", logger.Err(err))
+		return false, util.ErrInternal
+	}
+
+	return existsFlag == 1, nil
+}
+
+func (u *pgUserRepository) searchNicknameQuery(nickname string) util.SqlBuilderResult {
+	qb := util.NewSqlBuilder("select 1 from users")
+	qb.Concat("where nickname = $%d", strings.ToLower(nickname))
 
 	return qb.Result()
 }

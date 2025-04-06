@@ -839,6 +839,41 @@ const docTemplate = `{
                 }
             }
         },
+        "/users/exists": {
+            "get": {
+                "security": [
+                    {
+                        "Session": []
+                    }
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Check existing nickname",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search user nickname",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.UserNicknameExists"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/users/{userId}": {
             "get": {
                 "security": [
@@ -1473,6 +1508,14 @@ const docTemplate = `{
                 },
                 "yearTaken": {
                     "type": "integer"
+                }
+            }
+        },
+        "model.UserNicknameExists": {
+            "type": "object",
+            "properties": {
+                "exists": {
+                    "type": "boolean"
                 }
             }
         }

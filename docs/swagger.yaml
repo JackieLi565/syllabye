@@ -169,6 +169,11 @@ definitions:
       yearTaken:
         type: integer
     type: object
+  model.UserNicknameExists:
+    properties:
+      exists:
+        type: boolean
+    type: object
 info:
   contact:
     name: Jackie Li
@@ -927,6 +932,27 @@ paths:
       security:
       - Session: []
       summary: Update a user course
+      tags:
+      - User
+  /users/exists:
+    get:
+      parameters:
+      - description: Search user nickname
+        in: query
+        name: search
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.UserNicknameExists'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      security:
+      - Session: []
+      summary: Check existing nickname
       tags:
       - User
 securityDefinitions:

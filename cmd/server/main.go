@@ -133,6 +133,7 @@ func main() {
 			r.Use(authHandler.AuthMiddleware)
 			r.Use(utilHandler.JsonMiddleware)
 
+			r.Get("/exists", userHandler.SearchUserNickname)
 			r.Route("/{userId}", func(r chi.Router) {
 				r.Get("/", userHandler.GetUser)
 				r.Patch("/", userHandler.UpdateUser)

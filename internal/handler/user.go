@@ -305,6 +305,7 @@ func (u *userHandler) ListUserCourses(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		http.Error(w, "An internal error occurred.", http.StatusInternalServerError)
+		return
 	}
 
 	userCourses := make([]model.UserCourse, 0, len(courses))
@@ -320,4 +321,34 @@ func (u *userHandler) ListUserCourses(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(userCourses)
+}
+
+// SearchUserNickname checks if a user nickname exists.
+// @Summary Check existing nickname
+// @Tags User
+// @Param search query string false "Search user nickname"
+// @Success 200 {object} model.UserNicknameExists
+// @Failure 500 {string} string
+// @Security Session
+// @Router /users/exists [get]
+func (u *userHandler) SearchUserNickname(w http.ResponseWriter, r *http.Request) {
+	search := r.URL.Query().Get("search")
+	if search == "" {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(model.UserNicknameExists{
+			Exists: false,
+		})
+		return
+	}
+
+	exists, err := u.userRepo.SearchUserNickname(r.Context(), search)
+	if err != nil {
+		http.Error(w, "An internal error occurred.", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(model.UserNicknameExists{
+		Exists: exists,
+	})
 }
