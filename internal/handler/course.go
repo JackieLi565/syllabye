@@ -33,7 +33,7 @@ func NewCourseHandler(log logger.Logger, course repository.CourseRepository) *co
 // @Security Session
 // @Router /courses/{courseId} [get]
 func (c *courseHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
-	sessionValue := r.Context().Value(config.SessionKey)
+	sessionValue := r.Context().Value(config.AuthKey)
 	if sessionValue == nil {
 		c.log.Error("missing session middleware")
 	}
@@ -60,7 +60,7 @@ func (c *courseHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /courses [get]
 func (c *courseHandler) ListCourses(w http.ResponseWriter, r *http.Request) {
-	sessionValue := r.Context().Value(config.SessionKey)
+	sessionValue := r.Context().Value(config.AuthKey)
 	if sessionValue == nil {
 		c.log.Error("missing session middleware")
 	}

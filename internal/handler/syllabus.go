@@ -10,8 +10,10 @@ import (
 	"github.com/JackieLi565/syllabye/internal/config"
 	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/repository"
+	"github.com/JackieLi565/syllabye/internal/service/authorizer"
 	"github.com/JackieLi565/syllabye/internal/service/bucket"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
+	"github.com/JackieLi565/syllabye/internal/service/queue"
 	"github.com/JackieLi565/syllabye/internal/util"
 	"github.com/go-chi/chi/v5"
 )
@@ -20,13 +22,17 @@ type syllabusHandler struct {
 	log          logger.Logger
 	syllabusRepo repository.SyllabusRepository
 	presigner    bucket.PresignerClient
+	jwt          *authorizer.JwtAuthorizer
+	queue        queue.WebhookQueue
 }
 
-func NewSyllabusHandler(log logger.Logger, syllabus repository.SyllabusRepository, presigner bucket.PresignerClient) *syllabusHandler {
+func NewSyllabusHandler(log logger.Logger, syllabus repository.SyllabusRepository, presigner bucket.PresignerClient, jwt *authorizer.JwtAuthorizer, queue queue.WebhookQueue) *syllabusHandler {
 	return &syllabusHandler{
 		log:          log,
 		syllabusRepo: syllabus,
 		presigner:    presigner,
+		jwt:          jwt,
+		queue:        queue,
 	}
 }
 
@@ -42,7 +48,7 @@ func NewSyllabusHandler(log logger.Logger, syllabus repository.SyllabusRepositor
 // @Security Session
 // @Router /syllabi/{syllabusId} [get]
 func (s *syllabusHandler) GetSyllabus(w http.ResponseWriter, r *http.Request) {
-	sessionValue, ok := r.Context().Value(config.SessionKey).(model.Session)
+	sessionValue, ok := r.Context().Value(config.AuthKey).(model.Session)
 	if !ok {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -86,7 +92,7 @@ func (s *syllabusHandler) GetSyllabus(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /syllabi [post]
 func (s *syllabusHandler) CreateSyllabus(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.SessionKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(model.Session)
 	if !ok {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -123,8 +129,22 @@ func (s *syllabusHandler) CreateSyllabus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Clean up syllabus API
+	token, err := s.jwt.EncodeJwt(nil)
+	if err != nil {
+		http.Error(w, "An internal error occurred.", http.StatusInternalServerError)
+	}
+	requestId, _ := r.Context().Value(config.RequestIdKey).(string)
+	s.queue.SendMessage(r.Context(), queue.WebhookMessage{
+		RequestId: requestId,
+		Url:       os.Getenv(config.ServerDomain) + "/syllabi/" + syllabusId + "/verify",
+		Headers: map[string]string{
+			"Authorization": "Bearer " + token,
+		},
+	}, 15)
+
 	w.Header().Add("X-Presigned-Url", signedUrl)
-	w.Header().Set("Location", os.Getenv(config.Domain)+"/syllabi/"+syllabusId)
+	w.Header().Set("Location", os.Getenv(config.ServerDomain)+"/syllabi/"+syllabusId)
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -143,7 +163,7 @@ func (s *syllabusHandler) CreateSyllabus(w http.ResponseWriter, r *http.Request)
 // @Security Session
 // @Router /syllabi [get]
 func (s *syllabusHandler) ListSyllabi(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.SessionKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(model.Session)
 	if !ok {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -196,7 +216,7 @@ func (s *syllabusHandler) ListSyllabi(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /syllabi/{syllabusId} [patch]
 func (s *syllabusHandler) UpdateSyllabus(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.SessionKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(model.Session)
 	if !ok {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -225,7 +245,7 @@ func (s *syllabusHandler) UpdateSyllabus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.Header().Add("Location", os.Getenv(config.Domain)+"/syllabi/"+syllabusId)
+	w.Header().Add("Location", os.Getenv(config.ServerDomain)+"/syllabi/"+syllabusId)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -240,7 +260,7 @@ func (s *syllabusHandler) UpdateSyllabus(w http.ResponseWriter, r *http.Request)
 // @Security Session
 // @Router /syllabi/{syllabusId} [delete]
 func (s *syllabusHandler) DeleteSyllabus(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.SessionKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(model.Session)
 	if !ok {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -275,7 +295,7 @@ func (s *syllabusHandler) DeleteSyllabus(w http.ResponseWriter, r *http.Request)
 // @Security Session
 // @Router /syllabi/{syllabusId}/reaction [post]
 func (s *syllabusHandler) SyllabusReaction(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.SessionKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(model.Session)
 	if !ok {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -314,7 +334,7 @@ func (s *syllabusHandler) SyllabusReaction(w http.ResponseWriter, r *http.Reques
 // @Security Session
 // @Router /syllabi/{syllabusId}/reaction [delete]
 func (s *syllabusHandler) DeleteSyllabusReaction(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.SessionKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(model.Session)
 	if !ok {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -345,7 +365,7 @@ func (s *syllabusHandler) DeleteSyllabusReaction(w http.ResponseWriter, r *http.
 // @Security Session
 // @Router /syllabi/{syllabusId}/reactions [get]
 func (s *syllabusHandler) ListSyllabusLikes(w http.ResponseWriter, r *http.Request) {
-	sessionValue := r.Context().Value(config.SessionKey)
+	sessionValue := r.Context().Value(config.AuthKey)
 	if sessionValue == nil {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -374,10 +394,20 @@ func (s *syllabusHandler) ListSyllabusLikes(w http.ResponseWriter, r *http.Reque
 
 // SyncSyllabus triggers synchronization of a syllabus resource.
 func (s *syllabusHandler) SyncSyllabus(w http.ResponseWriter, r *http.Request) {
-	// TODO AWS JWT Auth
-
 	syllabusId := chi.URLParam(r, "syllabusId")
 	err := s.syllabusRepo.SyncSyllabus(r.Context(), syllabusId)
+	if err != nil {
+		http.Error(w, "An internal error occurred.", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// VerifySyllabus check if a syllabus has been synchronized.
+func (s *syllabusHandler) VerifySyllabus(w http.ResponseWriter, r *http.Request) {
+	syllabusId := chi.URLParam(r, "syllabusId")
+	isVerified, err := s.syllabusRepo.VerifySyllabus(r.Context(), syllabusId)
 	if err != nil {
 		if errors.Is(err, util.ErrNotFound) {
 			http.Error(w, "Syllabus not found.", http.StatusNotFound)
@@ -387,6 +417,12 @@ func (s *syllabusHandler) SyncSyllabus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Add("Location", os.Getenv(config.Domain)+"/syllabi/"+syllabusId)
 	w.WriteHeader(http.StatusNoContent)
+
+	// TODO: Send email to user
+	if !isVerified {
+		s.log.Info("Syllabus was not received")
+	} else {
+		s.log.Info("Syllabus was received")
+	}
 }

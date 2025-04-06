@@ -37,7 +37,7 @@ func NewUserHandler(log logger.Logger, user repository.UserRepository) *userHand
 // @Security Session
 // @Router /users/{userId} [get]
 func (u *userHandler) GetUser(w http.ResponseWriter, r *http.Request) {
-	sessionValue := r.Context().Value(config.SessionKey)
+	sessionValue := r.Context().Value(config.AuthKey)
 	if sessionValue == nil {
 		u.log.Error("missing session middleware")
 	}
@@ -74,7 +74,7 @@ func (u *userHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /users/{userId} [patch]
 func (u *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.SessionKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(model.Session)
 	if !ok {
 		u.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -111,7 +111,7 @@ func (u *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Location", os.Getenv(config.Domain)+"/users/"+userId)
+	w.Header().Set("Location", os.Getenv(config.ServerDomain)+"/users/"+userId)
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -128,7 +128,7 @@ func (u *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /users/{userId}/courses [post]
 func (u *userHandler) AddUserCourse(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.SessionKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(model.Session)
 	if !ok {
 		u.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -184,7 +184,7 @@ func (u *userHandler) AddUserCourse(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /users/{userId}/courses/{courseId} [delete]
 func (u *userHandler) DeleteUserCourse(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.SessionKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(model.Session)
 	if !ok {
 		u.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -227,7 +227,7 @@ func (u *userHandler) DeleteUserCourse(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /users/{userId}/courses/{courseId} [patch]
 func (u *userHandler) UpdateUserCourse(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.SessionKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(model.Session)
 	if !ok {
 		u.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -284,7 +284,7 @@ func (u *userHandler) UpdateUserCourse(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /users/{userId}/courses [get]
 func (u *userHandler) ListUserCourses(w http.ResponseWriter, r *http.Request) {
-	sessionValue := r.Context().Value(config.SessionKey)
+	sessionValue := r.Context().Value(config.AuthKey)
 	if sessionValue == nil {
 		u.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)

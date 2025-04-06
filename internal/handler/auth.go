@@ -13,6 +13,7 @@ import (
 	"github.com/JackieLi565/syllabye/internal/config"
 	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/repository"
+	"github.com/JackieLi565/syllabye/internal/service/authorizer"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/service/openid"
 	"github.com/JackieLi565/syllabye/internal/util"
@@ -26,14 +27,16 @@ type authHandler struct {
 	openIdProvider openid.OpenIdProvider
 	userRepo       repository.UserRepository
 	sessionRepo    repository.SessionRepository
+	jwt            *authorizer.JwtAuthorizer
 }
 
-func NewAuthHandler(log logger.Logger, user repository.UserRepository, session repository.SessionRepository, openId openid.OpenIdProvider) *authHandler {
+func NewAuthHandler(log logger.Logger, user repository.UserRepository, session repository.SessionRepository, openId openid.OpenIdProvider, jwt *authorizer.JwtAuthorizer) *authHandler {
 	return &authHandler{
 		log:            log,
 		openIdProvider: openId,
 		userRepo:       user,
 		sessionRepo:    session,
+		jwt:            jwt,
 	}
 }
 
@@ -102,7 +105,7 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 	}
 	if splitEmail[1] != "torontomu.ca" {
 		ah.log.Info(fmt.Sprintf("unauthorized login attempt with email %s", standardClaims.Email))
-		http.Redirect(w, r, os.Getenv(config.Domain)+"/sorry", http.StatusFound)
+		http.Redirect(w, r, os.Getenv(config.ClientDomain)+"/sorry", http.StatusFound)
 		return
 	}
 
@@ -121,7 +124,10 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	sessionToken, err := ah.encodeSessionToken(userId, sessionId)
+	sessionToken, err := ah.jwt.EncodeJwt(jwt.MapClaims{
+		"id":     sessionId,
+		"userId": userId,
+	})
 	if err != nil {
 		ah.log.Error("failed to encode session token", logger.Err(err))
 		http.Error(w, "Unable to create session for user.", http.StatusInternalServerError)
@@ -142,7 +148,7 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 	if stateClaims.Redirect != "" {
 		http.Redirect(w, r, stateClaims.Redirect, http.StatusFound)
 	} else {
-		http.Redirect(w, r, os.Getenv(config.Domain)+defaultRedirectUri, http.StatusFound)
+		http.Redirect(w, r, os.Getenv(config.ClientDomain)+defaultRedirectUri, http.StatusFound)
 	}
 
 	ah.log.Info(fmt.Sprintf("user %s has logged in with session token %s", userId, sessionToken))
@@ -165,7 +171,7 @@ func (ah *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	http.Redirect(w, r, os.Getenv(config.Domain)+defaultRedirectUri, http.StatusFound)
+	http.Redirect(w, r, os.Getenv(config.ClientDomain)+defaultRedirectUri, http.StatusFound)
 	ah.log.Info("a user has logged out")
 }
 
@@ -178,6 +184,8 @@ func (ah *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 // @Router /me [get]
 // @Security Session
 func (ah *authHandler) SessionCheck(w http.ResponseWriter, r *http.Request) {
+	ah.log.Info("session checked")
+
 	sessionCookie, err := r.Cookie(config.SessionCookie)
 	if err != nil {
 		http.Error(w, "Cookie not found.", http.StatusUnauthorized)
@@ -189,16 +197,29 @@ func (ah *authHandler) SessionCheck(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid session token.", http.StatusUnauthorized)
 		return
 	}
-
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(session)
 }
 
-func (ah *authHandler) SessionMiddleware(next http.Handler) http.Handler {
+func (ah *authHandler) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check for session auth first
 		sessionCookie, err := r.Cookie(config.SessionCookie)
 		if err != nil {
-			http.Error(w, "Cookie not found.", http.StatusUnauthorized)
+			// Cookie not found, check for authorization bearer token
+			token, err := util.GetBearerToken(r)
+			if err != nil {
+				http.Error(w, "Session or authorization token not found.", http.StatusUnauthorized)
+				return
+			}
+
+			if _, err = ah.jwt.DecodeJwt(token); err != nil {
+				ah.log.Info("invalid authorization token")
+				http.Error(w, "Internal route access denied.", http.StatusUnauthorized)
+				return
+			}
+
+			next.ServeHTTP(w, r)
 			return
 		}
 
@@ -208,67 +229,40 @@ func (ah *authHandler) SessionMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), config.SessionKey, session)
+		ctx := context.WithValue(r.Context(), config.AuthKey, session)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-func (ah *authHandler) encodeSessionToken(userId string, sessionId string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":     sessionId,
-		"userId": userId,
-	})
-
-	tokenString, err := token.SignedString([]byte(os.Getenv(config.JwtSecret)))
-	if err != nil {
-		ah.log.Info("failed to sign jwt session token")
-		return "", err
-	}
-
-	return tokenString, nil
-}
-
+// decodeSessionToken decodes a token string to a session model.
 func (ah *authHandler) decodeSessionToken(tokenString string) (model.Session, error) {
-	var session model.Session
-
-	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			ah.log.Info(fmt.Sprintf("unexpected signing method: %v", t.Header["alg"]))
-			return nil, util.ErrMalformed
-		}
-
-		return []byte(os.Getenv(config.JwtSecret)), nil
-	})
+	claims, err := ah.jwt.DecodeJwt(tokenString)
 	if err != nil {
+		ah.log.Info("failed to decode jwt", logger.Err(err))
 		return model.Session{}, err
 	}
 
-	if !token.Valid {
-		ah.log.Info("invalid jwt token")
+	var session model.Session
+	if userId, ok := claims["userId"].(string); ok {
+		session.UserId = userId
+	} else {
+		ah.log.Info("userId not found within parsed claim")
 		return model.Session{}, util.ErrMalformed
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		if userId, ok := claims["userId"].(string); ok {
-			session.UserId = userId
-		} else {
-			ah.log.Info("userId not found within parsed claim")
-			return model.Session{}, util.ErrMalformed
-		}
-
-		if id, ok := claims["id"].(string); ok {
-			session.Id = id
-		} else {
-			ah.log.Info("id not found within parsed claim")
-			return model.Session{}, util.ErrMalformed
-		}
+	if id, ok := claims["id"].(string); ok {
+		session.Id = id
+	} else {
+		ah.log.Info("id not found within parsed claim")
+		return model.Session{}, util.ErrMalformed
 	}
 
 	return session, nil
 }
 
+// getValidRedirectUrl retrieves a valid redirect url, otherwise a default url is provided.
 func (ah *authHandler) getValidRedirectUrl(redirectUrl string, host string) string {
-	defaultUrl := os.Getenv(config.Domain) + defaultRedirectUri
+	defaultUrl := os.Getenv(config.ClientDomain) + defaultRedirectUri
 	if redirectUrl == "" {
 		return defaultUrl
 	}
@@ -305,7 +299,10 @@ func (ah *authHandler) DevAuthorization(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	sessionToken, err := ah.encodeSessionToken(userId, "")
+	sessionToken, err := ah.jwt.EncodeJwt(jwt.MapClaims{
+		"id":     "", // Only allowed in dev handler
+		"userId": userId,
+	})
 	if err != nil {
 		ah.log.Error("failed to encode session token", logger.Err(err))
 		http.Error(w, "Unable to create admin session.", http.StatusInternalServerError)

@@ -8,10 +8,12 @@ import (
 	"github.com/JackieLi565/syllabye/internal/config"
 	"github.com/JackieLi565/syllabye/internal/handler"
 	"github.com/JackieLi565/syllabye/internal/repository"
+	"github.com/JackieLi565/syllabye/internal/service/authorizer"
 	"github.com/JackieLi565/syllabye/internal/service/bucket"
 	"github.com/JackieLi565/syllabye/internal/service/database"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/service/openid"
+	"github.com/JackieLi565/syllabye/internal/service/queue"
 	"github.com/go-chi/chi/v5"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -42,10 +44,13 @@ func main() {
 	if err != nil { // TODO: remove panic and panic from function level
 		panic("database connection failed")
 	}
-	s3Client := bucket.NewS3Client(log)
+	s3Client := bucket.NewS3Client(log) // TODO: remove logger in favour for panic err
+	sqsClient := queue.NewQueueClient()
 
 	googleOpenId := openid.NewGoogleOpenIdProvider(log)
 	s3Presigner := bucket.NewS3Presigner(log, s3Client, os.Getenv(config.AWS_S3_SYLLABI_BUCKET))
+	jwt := authorizer.NewJwtAuthorizer(os.Getenv(config.JwtSecret))
+	webhookQueue := queue.NewSqsWebhook(log, sqsClient)
 
 	// Repositories
 	pgProgramRepo := repository.NewPgProgramRepository(db, log)
@@ -58,13 +63,13 @@ func main() {
 
 	// Handlers
 	utilHandler := handler.NewUtilHandler()
-	authHandler := handler.NewAuthHandler(log, pgUserRepo, pgSessionRepo, googleOpenId)
+	authHandler := handler.NewAuthHandler(log, pgUserRepo, pgSessionRepo, googleOpenId, jwt)
 	programHandler := handler.NewProgramHandler(log, pgProgramRepo)
 	facultyHandler := handler.NewFacultyHandler(log, pgFacultyRepo)
 	courseCategoryHandler := handler.NewCourseCategoryHandler(log, pgCourseCategoryRepo)
 	courseHandler := handler.NewCourseHandler(log, pgCourseRepo)
 	userHandler := handler.NewUserHandler(log, pgUserRepo)
-	syllabusHandler := handler.NewSyllabusHandler(log, pgSyllabusRepo, s3Presigner)
+	syllabusHandler := handler.NewSyllabusHandler(log, pgSyllabusRepo, s3Presigner, jwt, webhookQueue)
 
 	r := chi.NewRouter()
 	r.Use(utilHandler.RequestIdMiddleware)
@@ -85,7 +90,7 @@ func main() {
 			})
 
 			r.Get("/*", httpSwagger.Handler(
-				httpSwagger.URL("http://localhost:8000/openapi/doc.json"),
+				httpSwagger.URL(os.Getenv(config.ServerDomain)+"/openapi/doc.json"),
 			))
 		})
 	}
@@ -109,7 +114,7 @@ func main() {
 		})
 
 		r.Route("/programs", func(r chi.Router) {
-			r.Use(authHandler.SessionMiddleware)
+			r.Use(authHandler.AuthMiddleware)
 			r.Use(utilHandler.JsonMiddleware)
 
 			r.Get("/", programHandler.ListPrograms)
@@ -117,7 +122,7 @@ func main() {
 		})
 
 		r.Route("/faculties", func(r chi.Router) {
-			r.Use(authHandler.SessionMiddleware)
+			r.Use(authHandler.AuthMiddleware)
 			r.Use(utilHandler.JsonMiddleware)
 
 			r.Get("/", facultyHandler.ListFaculties)
@@ -125,7 +130,7 @@ func main() {
 		})
 
 		r.Route("/users", func(r chi.Router) {
-			r.Use(authHandler.SessionMiddleware)
+			r.Use(authHandler.AuthMiddleware)
 			r.Use(utilHandler.JsonMiddleware)
 
 			r.Route("/{userId}", func(r chi.Router) {
@@ -145,7 +150,7 @@ func main() {
 		})
 
 		r.Route("/courses", func(r chi.Router) {
-			r.Use(authHandler.SessionMiddleware)
+			r.Use(authHandler.AuthMiddleware)
 			r.Use(utilHandler.JsonMiddleware)
 
 			r.Get("/", courseHandler.ListCourses)
@@ -158,7 +163,7 @@ func main() {
 		})
 
 		r.Route("/syllabi", func(r chi.Router) {
-			r.Use(authHandler.SessionMiddleware)
+			r.Use(authHandler.AuthMiddleware)
 			r.Use(utilHandler.JsonMiddleware)
 
 			r.Post("/", syllabusHandler.CreateSyllabus)
@@ -169,6 +174,7 @@ func main() {
 				r.Patch("/", syllabusHandler.UpdateSyllabus)
 				r.Delete("/", syllabusHandler.DeleteSyllabus)
 				r.Get("/sync", syllabusHandler.SyncSyllabus)
+				r.Get("/verify", syllabusHandler.VerifySyllabus)
 
 				r.Route("/reactions", func(r chi.Router) {
 					r.Get("/", syllabusHandler.ListSyllabusLikes)

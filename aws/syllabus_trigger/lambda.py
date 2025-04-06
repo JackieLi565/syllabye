@@ -7,10 +7,6 @@ def handler(event, _):
     domain = os.getenv("DOMAIN")
     jwt_secret = os.getenv("JWT_SECRET")
 
-    if not domain or not jwt_secret:
-        print("environment variable 'JWT_SECRET' or 'DOMAIN' are not set")
-        return
-
     for record in event["Records"]:
         try:
             s3_info = record["s3"]

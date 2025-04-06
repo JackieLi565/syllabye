@@ -32,7 +32,7 @@ func NewProgramHandler(log logger.Logger, program repository.ProgramRepository) 
 // @Security Session
 // @Router /programs/{programId} [get]
 func (p *programHandler) GetProgram(w http.ResponseWriter, r *http.Request) {
-	sessionValue := r.Context().Value(config.SessionKey)
+	sessionValue := r.Context().Value(config.AuthKey)
 	if sessionValue == nil {
 		p.log.Error("missing session middleware")
 	}
@@ -57,7 +57,7 @@ func (p *programHandler) GetProgram(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /programs [get]
 func (p *programHandler) ListPrograms(w http.ResponseWriter, r *http.Request) {
-	sessionValue := r.Context().Value(config.SessionKey)
+	sessionValue := r.Context().Value(config.AuthKey)
 	if sessionValue == nil {
 		p.log.Error("missing session middleware")
 	}
