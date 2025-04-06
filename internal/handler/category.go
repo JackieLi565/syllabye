@@ -31,7 +31,7 @@ func NewCourseCategoryHandler(log logger.Logger, category repository.CourseCateg
 // @Security Session
 // @Router /courses/categories/{categoryId} [get]
 func (p *courseCategoryHandler) GetCourseCategory(w http.ResponseWriter, r *http.Request) {
-	sessionValue := r.Context().Value(config.SessionKey)
+	sessionValue := r.Context().Value(config.AuthKey)
 	if sessionValue == nil {
 		p.log.Error("missing session middleware")
 	}
@@ -55,7 +55,7 @@ func (p *courseCategoryHandler) GetCourseCategory(w http.ResponseWriter, r *http
 // @Security Session
 // @Router /courses/categories [get]
 func (p *courseCategoryHandler) ListCourseCategories(w http.ResponseWriter, r *http.Request) {
-	sessionValue := r.Context().Value(config.SessionKey)
+	sessionValue := r.Context().Value(config.AuthKey)
 	if sessionValue == nil {
 		p.log.Error("missing session middleware")
 	}

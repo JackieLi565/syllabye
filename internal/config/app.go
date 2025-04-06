@@ -1,3 +1,6 @@
 package config
 
-var ENV = "ENV"
+const ENV = "ENV"
+const Domain = "DOMAIN"
+const ServerDomain = "SERVER_DOMAIN"
+const ClientDomain = "CLIENT_DOMAIN"

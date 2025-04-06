@@ -1,7 +1,7 @@
 package config
 
-type sessionKey string
+type authKey string
 type requestIdKey string
 
-const SessionKey sessionKey = "session"
+const AuthKey authKey = "auth"
 const RequestIdKey requestIdKey = "requestId"

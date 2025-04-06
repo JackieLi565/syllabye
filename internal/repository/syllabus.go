@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -21,7 +22,10 @@ type SyllabusRepository interface {
 	ListSyllabi(ctx context.Context, userId string, filters model.SyllabusFilters, paginate util.Paginate) ([]model.ISyllabus, error)
 	DeleteSyllabus(ctx context.Context, userId string, syllabusId string) error
 	UpdateSyllabus(ctx context.Context, userId string, syllabusId string, syllabus model.TSyllabus) error
+	// SyncSyllabus updates a syllabus with a valid date_synced value.
 	SyncSyllabus(ctx context.Context, syllabusId string) error
+	// VerifySyllabus verifies if a syllabus has a valid sync date, otherwise the syllabus will be removed with a return value of false.
+	VerifySyllabus(ctx context.Context, syllabusId string) (bool, error)
 	ListSyllabusLikes(ctx context.Context, syllabusId string) ([]model.ISyllabusLike, error)
 	LikeSyllabus(ctx context.Context, userId string, syllabusId string, dislike bool) error
 	DeleteSyllabusLike(ctx context.Context, userId string, syllabusId string) error
@@ -40,7 +44,7 @@ func NewPgSyllabusRepository(db *database.PostgresDb, log logger.Logger) *pgSyll
 }
 
 func (s *pgSyllabusRepository) GetAndViewSyllabus(ctx context.Context, userId string, syllabusId string) (model.ISyllabus, error) {
-	getResult, err := s.getSyllabusQuery(userId, syllabusId)
+	getResult, err := s.getActiveSyllabusQuery(userId, syllabusId)
 	viewResult, _ := s.incrementSyllabusView(userId, syllabusId) // No need to handel err (pre handle id in getSyllabusQuery)
 	if err != nil {
 		return model.ISyllabus{}, err
@@ -101,7 +105,7 @@ func (s *pgSyllabusRepository) incrementSyllabusView(userId string, syllabusId s
 	return qb.Result(), nil
 }
 
-func (s *pgSyllabusRepository) getSyllabusQuery(userId string, syllabusId string) (util.SqlBuilderResult, error) {
+func (s *pgSyllabusRepository) getActiveSyllabusQuery(userId string, syllabusId string) (util.SqlBuilderResult, error) {
 	var syllabusUuid pgtype.UUID
 	if err := syllabusUuid.Scan(syllabusId); err != nil {
 		s.log.Info("invalid syllabus id")
@@ -264,14 +268,13 @@ func (s *pgSyllabusRepository) DeleteSyllabus(ctx context.Context, userId string
 }
 
 func (s *pgSyllabusRepository) deleteSyllabusQuery(syllabusId string) (util.SqlBuilderResult, error) {
-	var syllabusUuid pgtype.UUID
-	if err := syllabusUuid.Scan(syllabusId); err != nil {
-		s.log.Info("invalid syllabus id")
-		return util.SqlBuilderResult{}, util.ErrMalformed
+	syllabusUuid, err := database.ParsePgUuid(syllabusId)
+	if err != nil {
+		return util.SqlBuilderResult{}, err
 	}
 
 	qb := util.NewSqlBuilder("delete from syllabi")
-	qb.Concat("where id = $%d", syllabusId)
+	qb.Concat("where id = $%d", syllabusUuid)
 	qb.Concat("returning user_id")
 
 	return qb.Result(), nil
@@ -346,12 +349,7 @@ func (s *pgSyllabusRepository) SyncSyllabus(ctx context.Context, syllabusId stri
 
 	_, err = s.db.Pool.Exec(ctx, result.Query, result.Args...)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			s.log.Warn("attempt to sync syllabus that does not exists.")
-			return util.ErrNotFound
-		}
-
-		s.log.Error("un-handled sync syllabus query error")
+		s.log.Error("un-handled sync syllabus query error", logger.Err(err))
 		return util.ErrInternal
 	}
 
@@ -499,6 +497,7 @@ func (s *pgSyllabusRepository) listSyllabusLikesQuery(syllabusId string) (util.S
 	return qb.Result(), nil
 }
 
+// Deprecated - use database database.ParsePgUuid()
 func (s *pgSyllabusRepository) validateSyllabusId(syllabusId string) (pgtype.UUID, error) {
 	var syllabusUuid pgtype.UUID
 	if err := syllabusUuid.Scan(syllabusId); err != nil {
@@ -506,4 +505,62 @@ func (s *pgSyllabusRepository) validateSyllabusId(syllabusId string) (pgtype.UUI
 	}
 
 	return syllabusUuid, nil
+}
+
+func (s *pgSyllabusRepository) VerifySyllabus(ctx context.Context, syllabusId string) (bool, error) {
+	tx, err := s.db.Pool.Begin(ctx)
+	if err != nil {
+		s.log.Error("failed to begin verify syllabus transaction", logger.Err(err))
+		return false, util.ErrInternal
+	}
+	defer tx.Rollback(ctx)
+
+	getResult, err := s.getDateSyncedSyllabusQuery(syllabusId)
+	if err != nil {
+		return false, err
+	}
+
+	var dateSynced sql.NullTime
+	err = tx.QueryRow(ctx, getResult.Query, getResult.Args...).Scan(&dateSynced)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			s.log.Error("attempt to verify a syllabus that no longer exists")
+			return false, util.ErrNotFound
+		}
+
+		s.log.Error("un-handled verify syllabus query error", logger.Err(err))
+		return false, util.ErrInternal
+	}
+
+	// Delete syllabus as it was not uploaded within a given time span
+	isVerified := true // Assume the syllabus is verified unless removed
+	if !dateSynced.Valid {
+		deleteResult, _ := s.deleteSyllabusQuery(syllabusId)
+		_, err = tx.Exec(ctx, deleteResult.Query, deleteResult.Args...)
+		if err != nil {
+			s.log.Error("un-handled delete syllabus query error", logger.Err(err))
+			return isVerified, util.ErrInternal
+		}
+
+		isVerified = false
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		s.log.Error("failed to commit verify syllabus transaction", logger.Err(err))
+		return false, util.ErrInternal
+	}
+
+	return isVerified, nil
+}
+
+func (s *pgSyllabusRepository) getDateSyncedSyllabusQuery(syllabusId string) (util.SqlBuilderResult, error) {
+	syllabusUuid, err := database.ParsePgUuid(syllabusId)
+	if err != nil {
+		return util.SqlBuilderResult{}, err
+	}
+
+	qb := util.NewSqlBuilder("select date_synced from syllabi")
+	qb.Concat("where id = $%d", syllabusUuid)
+
+	return qb.Result(), nil
 }

@@ -32,7 +32,7 @@ func NewFacultyHandler(log logger.Logger, faculty repository.FacultyRepository) 
 // @Security Session
 // @Router /faculties/{facultyId} [get]
 func (p *facultyHandler) GetFaculty(w http.ResponseWriter, r *http.Request) {
-	sessionValue := r.Context().Value(config.SessionKey)
+	sessionValue := r.Context().Value(config.AuthKey)
 	if sessionValue == nil {
 		p.log.Error("missing session middleware")
 	}
@@ -56,7 +56,7 @@ func (p *facultyHandler) GetFaculty(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /faculties [get]
 func (p *facultyHandler) ListFaculties(w http.ResponseWriter, r *http.Request) {
-	sessionValue := r.Context().Value(config.SessionKey)
+	sessionValue := r.Context().Value(config.AuthKey)
 	if sessionValue == nil {
 		p.log.Error("missing session middleware")
 	}
