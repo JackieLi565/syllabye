@@ -46,7 +46,11 @@ export default defineNuxtConfig({
       apiUrl: ''
     }
   },
-  plugins: ['~/plugins/auth.ts'],
+  routeRules: {
+    '/': {
+      ssr: false
+    }
+  },
   app: {
     head: {
       title: 'Syllabye',
