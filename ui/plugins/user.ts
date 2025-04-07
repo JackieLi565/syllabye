@@ -6,27 +6,30 @@ export default defineNuxtPlugin(nuxtApp => {
 
   const fetchUser = async () => {
     if (session.value?.userId) {
-      const event = useRequestEvent();
       try {
+        let headers: Record<string, string> | undefined;
+  
+        if (import.meta.server) {
+          const event = useRequestEvent();
+          if (event?.node.req.headers.cookie) {
+            headers = { cookie: event.node.req.headers.cookie };
+          }
+        }
+  
         const userData = await $fetch<User | null>(`/api/user/${session.value.userId}`, {
-          headers: event?.node.req.headers.cookie
-            ? { cookie: event.node.req.headers.cookie }
-            : undefined,
+          headers,
           credentials: "include",
         });
-
-        // If userData exists and has no nickname, mark as new user
+  
         const isNewUser = !!userData && !userData.nickname;
-        user.value = userData
-          ? { ...userData, newuser: isNewUser }
-          : null;
-
+        user.value = userData ? { ...userData, newuser: isNewUser } : null;
+  
       } catch (e) {
-        console.error('Failed to fetch user due to no session:', e);
+        console.error('Failed to fetch user:', e);
         user.value = null;
       }
     }
-  };
+  };  
 
   watchEffect(() => {
     if (session.value) {

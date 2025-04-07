@@ -7,16 +7,28 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { UserRound, LogOut } from 'lucide-vue-next';
+import { UserRound, LogOut } from 'lucide-vue-next'
+import type { User } from '~/types/types'
 
-const user = await useUser();
+const user = useState<User>('user')
+const config = useRuntimeConfig()
+const url = config.public.apiUrl + '/logout'
+
+// fallback profile pic
+const getInitial = () => user?.value?.fullname?.[0]?.toUpperCase() || '?'
 </script>
 
 <template>
   <DropdownMenu>
     <DropdownMenuTrigger>
-      <div class="w-8 h-8 rounded-full overflow-hidden border border-muted">
-        <img :src="user?.picture" :alt="user?.fullname.split(' ')[0][0]" class="w-full h-full object-cover" />
+      <div class="w-8 h-8 rounded-full overflow-hidden border border-border bg-primary flex items-center justify-center text-white text-sm font-medium">
+        <img
+          v-if="user?.picture"
+          :src="user.picture"
+          :alt="getInitial()"
+          class="w-full h-full object-cover"
+        />
+        <span v-else>{{ getInitial() }}</span>
       </div>
     </DropdownMenuTrigger>
     <DropdownMenuContent>
@@ -27,8 +39,18 @@ const user = await useUser();
         </div>
       </DropdownMenuLabel>
       <DropdownMenuSeparator />
-      <DropdownMenuItem><UserRound />Profile</DropdownMenuItem>
-      <DropdownMenuItem><LogOut />Sign out</DropdownMenuItem>
+      <NuxtLink to="/profile">
+        <DropdownMenuItem class="cursor-pointer">
+          <UserRound />
+          <p>Profile</p>
+        </DropdownMenuItem>
+      </NuxtLink>
+      <NuxtLink :to="url">
+        <DropdownMenuItem class="cursor-pointer">
+          <LogOut />
+          <p>Sign out</p>
+        </DropdownMenuItem>
+      </NuxtLink>
     </DropdownMenuContent>
   </DropdownMenu>
 </template>

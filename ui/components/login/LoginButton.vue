@@ -16,6 +16,7 @@ import {
 const config = useRuntimeConfig();
 
 const authUrl = config.public.googleAuth + "?redirect=" + config.public.googleRedirectUrl
+// const session = useSession()
 </script>
 
 <template>

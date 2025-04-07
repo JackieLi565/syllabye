@@ -23,5 +23,10 @@ export default defineNuxtPlugin({
         return null;
       }
     });
+    return {
+      provide: {
+        session
+      }
+    }
   }
 });

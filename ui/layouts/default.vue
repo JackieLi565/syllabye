@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import SignUpForm from '~/components/signup/SignUpForm.vue';
-const user = await useUser()
-const newUser = ref(user.value?.newuser)
+import LoginModal from '~/components/login/LoginModal.vue';
 </script>
 
 <template>
@@ -9,7 +8,8 @@ const newUser = ref(user.value?.newuser)
     <NavigationBar/>
     <NuxtLoadingIndicator :color="true" :height="5" />
     <div class="md:mt-14 flex-grow">
-      <SignUpForm :open="newUser ? true : false"/>
+      <SignUpForm />
+      <LoginModal />
       <slot />
     </div>
     <Footer/>
