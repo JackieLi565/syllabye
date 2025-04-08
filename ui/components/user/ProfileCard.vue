@@ -26,10 +26,10 @@ console.log(user.value)
               <h1 class="text-xl font-semibold">{{ user?.fullname }}</h1>
               <div class="text-muted-foreground flex items-start space-x-2">
                 <span>{{ user?.nickname }}</span>
-                <NuxtLink to="https://instagram.com/ptktran" target="blank">
+                <NuxtLink to="https://instagram.com/" target="blank">
                   <Badge variant="secondary" class="rounded-xl py-1 space-x-1">
                     <Icon icon="mdi:instagram" class="text-base" />
-                    <p>ptktran</p>
+                    <p>johndoe</p>
                   </Badge>
                 </NuxtLink>
               </div>
@@ -43,10 +43,10 @@ console.log(user.value)
         <div class="mx-8 space-y-4">
           <div class="mt-2 text-muted-foreground text-sm">
             <h1 class="flex items-center space-x-1.5"><Icon icon="lucide:book-text" class="text-lg" /><span>{{ program?.name }}</span></h1>
-            <h1 class="flex items-center space-x-1.5"><Icon icon="mdi:education-outline" class="text-xl" /><span>{{ user?.currentYear || '5th Year' }}</span></h1>
+            <h1 class="flex items-center space-x-1.5"><Icon icon="mdi:education-outline" class="text-xl" /><span>{{ user?.currentYear || '4th Year' }}</span></h1>
           </div>
           <div>
-            <p class="font-light text-sm">I like turtles.</p>
+            <p class="font-light text-sm">Some bio thingy</p>
           </div>
         </div>
       </div>
