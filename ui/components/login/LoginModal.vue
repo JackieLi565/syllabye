@@ -15,8 +15,12 @@ import {
 
 const { showLoginModal } = useLoginModal()
 
+const route = useRoute()
 const config = useRuntimeConfig()
-const authUrl = config.public.googleAuth + "?redirect=" + config.public.googleRedirectUrl
+
+const authUrl = route.query.redirect ? `${config.public.googleAuth}?redirect=${encodeURIComponent(route.query.redirect as string)}` : config.public.googleAuth
+console.log(config.public.googleAuth)
+console.log(authUrl)
 </script>
 
 <template>

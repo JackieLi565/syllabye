@@ -288,7 +288,7 @@ func (ah *authHandler) DevAuthorization(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	redirectUrl := ah.getValidRedirectUrl(r.URL.Query().Get("redirect"), r.Host)
+	redirectUrl := ah.getValidRedirectUrl(r.URL.Query().Get("redirect"), "localhost:3000")
 
 	userId, err := ah.userRepo.LoginOrRegisterUser(r.Context(), openid.StandardClaims{
 		Name:  "System Admin (Development)",

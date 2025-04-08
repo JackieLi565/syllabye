@@ -43,12 +43,8 @@ export default defineNuxtConfig({
     public: {
       googleAuth: '',
       googleRedirectUrl: '',
-      apiUrl: ''
-    }
-  },
-  routeRules: {
-    '/': {
-      ssr: false
+      apiUrl: '',
+      siteUrl: ''
     }
   },
   app: {
@@ -60,6 +56,6 @@ export default defineNuxtConfig({
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
       ]
-    }
+    },
   }
 })

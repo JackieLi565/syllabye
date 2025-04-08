@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const session = useSession()
+const { session } = useAuth()
 const route = useRoute()
 const router = useRouter()
 const { openLoginModal } = useLoginModal()

@@ -6,8 +6,7 @@ import LoginModal from '~/components/login/LoginModal.vue';
 <template>
   <div class="flex flex-col min-h-screen">
     <NavigationBar/>
-    <NuxtLoadingIndicator :color="true" :height="5" />
-    <div class="md:mt-14 flex-grow">
+    <div class="mt-14 flex-grow">
       <SignUpForm />
       <LoginModal />
       <slot />

@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   try {
     const response = await $fetch(`${apiUrl}`, {
       headers: {
-        cookie: cookie || "", // 🔁 Forward the user's session cookie
+        cookie: cookie || "",
       },
     });
     return response ?? null

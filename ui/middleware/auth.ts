@@ -1,7 +1,10 @@
-// export default defineNuxtRouteMiddleware((to) => {
-//   const session = useNuxtApp().$session.value
+export default defineNuxtRouteMiddleware((from, to) => {
+  if (import.meta.client) return
+  const config = useRuntimeConfig()
+  const { session } = useAuth()
 
-//   if (!session) {
-//     return navigateTo(`/?redirect=${encodeURIComponent(to.fullPath)}`, { replace: true })
-//   }
-// })
+
+  if (!session.value) {
+    return navigateTo(`/?redirect=${encodeURIComponent(config.public.siteUrl + to.fullPath)}`, { replace: true })
+  }
+})

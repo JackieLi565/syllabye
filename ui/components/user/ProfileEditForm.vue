@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { useField, useForm } from 'vee-validate'
+import { useForm } from 'vee-validate'
+import { Icon } from '@iconify/vue/dist/iconify.js'
 import { toTypedSchema } from '@vee-validate/zod'
 import * as z from 'zod'
 
 import { Button } from '@/components/ui/button'
 import {
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -19,13 +19,13 @@ import { Combobox, ComboboxAnchor, ComboboxEmpty, ComboboxGroup, ComboboxInput, 
 import { ChevronsUpDown } from 'lucide-vue-next'
 import { useToast } from '@/components/ui/toast/use-toast'
 import SkeletonPage from '../loading/SkeletonPage.vue'
+import type { Program } from '~/types/types'
 
 const { toast } = useToast()
 const loading = ref(false)
 const { user } = useAuth()
-const newUser = ref(user.value?.newuser)
-const easterEgg = ref(false)
-
+const { program: userProgram } = usePrograms({ programId: user.value?.programId })
+const { programs: programsData } = usePrograms()
 const { isValid, checkUsername } = useCheckUsername()
 
 const formSchema = toTypedSchema(z.object({
@@ -35,12 +35,12 @@ const formSchema = toTypedSchema(z.object({
   currentYear: z.number().min(1).max(8),
 }))
 
-const { data: programsData } = await useFetch('/api/programs/programs')
-
+console.log(programsData.value)
 const programs = programsData.value?.map(program => ({
   label: program.name,
-  value: program.id,
+  value: program.id
 }))
+
 const years = [
   { label: '1st Year', value: 1 },
   { label: '2nd Year', value: 2 },
@@ -52,70 +52,88 @@ const years = [
   { label: '8th Year', value: 8 },
 ]
 
-const form = useForm({
-  validationSchema: formSchema,
+const originalValues = ref({
+  nickname: user.value?.nickname ?? '',
+  gender: user.value?.gender ?? '',
+  program: user.value?.programId ?? '',
+  currentYear: user.value?.currentYear ?? 1,
 })
+const form = useForm({
+  initialValues: originalValues.value,
+  validationSchema: formSchema
+})
+
+const getChangedValues = () => {
+  return Object.fromEntries(
+    Object.entries(form.values).filter(
+      ([key, value]) => value !== originalValues.value[key as keyof typeof originalValues.value]
+    )
+  )
+}
 
 const { setFieldValue, handleSubmit } = form
 
-watchEffect(() => {
-  if (form.values.currentYear === 8) {
-    easterEgg.value = true
-  } else {
-    easterEgg.value = false
+const onSubmit = handleSubmit(async () => {
+  loading.value = true
+  try {
+    const changedValues = getChangedValues()
+    
+    if (Object.keys(changedValues).length === 0) {
+      toast({
+        title: 'No changes made',
+        description: 'Nothing was updated.',
+      })
+      loading.value = false
+      return
+    }
+
+    const { status } = await useFetch(`/api/user/update/${user.value?.id}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      method: 'PATCH',
+      body: changedValues,
+    })
+
+    if (status.value === 'success') {
+      toast({
+        title: 'Profile updated!',
+        description: 'Your changes were saved.',
+      })
+      reloadNuxtApp()
+    } else {
+      toast({
+        title: 'Error updating profile',
+        description: 'Please try again',
+      })
+    }
+  } catch (err) {
+    console.error('Error sending PATCH request:', err)
+    toast({
+      title: 'Something went wrong',
+      description: 'Please try again later',
+    })
+  } finally {
+    loading.value = false
   }
 })
 
-const onSubmit = handleSubmit(async (formValues) => {
-  loading.value = true
-  try {
-    const { status } = await useFetch(`/api/user/update/${user.value?.id}`, {
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: "include",
-      method: 'PATCH',
-      body: formValues,
-    });
-    
-    if (status.value === 'success') {
-      toast({
-        title: 'Welcome to Syllabye!',
-        description: 'Your profile has been created.',
-      })
-      loading.value = false
-      reloadNuxtApp()
-    } else if (status.value === 'pending') {
-      loading.value = true
-    } else {
-      toast({
-        title: 'Error creating account',
-        description: 'Please try again'
-      })
-      loading.value = false
-    }
-  } catch (err) {
-    console.error('Error sending PATCH request:', err);
-    toast({
-      title: 'Something went wrong in our server',
-      description: 'Please try again later'
-    })
-  } finally {
-    loading.value = false;
-  }
-})
 </script>
 
 <template>
-  <Dialog :open="newUser ? true : false">
+  <Dialog>
+    <DialogTrigger>
+      <Button size="default" variant="secondary">
+        <Icon icon="lucide:user-pen" />
+        <span>Edit</span>
+      </Button>
+    </DialogTrigger>
     <DialogContent 
-      class="[&>button:last-child]:hidden outline-none"
-      @interact-outside="(event) => event.preventDefault()" 
-      @escape-key-down="(event) => event.preventDefault()"
+      class="outline-none"
     >
       <DialogHeader class="-space-y-2">
-        <h1 class="text-lg">Hey there, first time user!</h1>
-        <p class="text-muted-foreground font-light text-sm">Enter your details to continue</p>
+        <h1 class="text-lg">Edit your profile</h1>
       </DialogHeader>
       <Separator class="h-[0.5px]"/>
       
@@ -133,7 +151,7 @@ const onSubmit = handleSubmit(async (formValues) => {
               <FormControl>
                 <Input
                   type="text"
-                  placeholder="johndoe1"
+                  :placeholder="user?.nickname"
                   v-bind="componentField"
                   @input="checkUsername($event.target.value)"
                 />
@@ -171,10 +189,7 @@ const onSubmit = handleSubmit(async (formValues) => {
             
             <FormField v-slot="{ componentField }" name="currentYear">
               <FormItem class="w-1/2">
-                <FormLabel>
-                  Year of Study
-                  <span v-if="easterEgg">👀</span>
-                </FormLabel>
+                <FormLabel>Year of Study</FormLabel>
                 <Select v-bind="componentField">
                   <FormControl>
                     <SelectTrigger>
@@ -210,6 +225,7 @@ const onSubmit = handleSubmit(async (formValues) => {
                       <div class="relative w-full">
                         <ComboboxInput
                           class="w-full"
+                          :model-value="userProgram?.name"
                           :display-value="(val) => val?.label ?? ''"
                           placeholder="Select program..."
                         />
