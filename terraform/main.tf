@@ -46,11 +46,18 @@ module "thumbnail_lambda" {
 }
 
 module "syllabus_bucket" {
-  source                = "./modules/s3/syllabus"
-  bucket                = var.aws_s3_syllabi_bucket
-  syllabus_lambda_name  = module.syllabus_lambda.function_name
-  thumbnail_lambda_name = module.thumbnail_lambda.function_name
-  lambda_arns           = [module.syllabus_lambda.function_arn, module.syllabus_lambda.function_arn]
+  source = "./modules/s3/syllabus"
+  bucket = var.aws_s3_syllabi_bucket
+  lambdas = [
+    {
+      name = module.syllabus_lambda.function_name
+      arn  = module.syllabus_lambda.function_arn
+    },
+    {
+      name = module.thumbnail_lambda.function_name
+      arn  = module.thumbnail_lambda.function_arn
+    }
+  ]
 }
 
 module "thumbnail_bucket" {

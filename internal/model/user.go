@@ -10,7 +10,7 @@ type User struct {
 	ProgramId   string `json:"programId,omitempty"`
 	FullName    string `json:"fullname,omitempty"`
 	Nickname    string `json:"nickname,omitempty"`
-	CurrentYear *int16 `json:"currentYear,omitempty"`
+	CurrentYear int16  `json:"currentYear,omitempty"`
 	Gender      string `json:"gender,omitempty"`
 	Email       string `json:"email,omitempty"`
 	Picture     string `json:"picture,omitempty"`
@@ -18,13 +18,14 @@ type User struct {
 
 func ToUser(u IUser) User {
 	return User{
-		Id:        u.Id,
-		ProgramId: u.ProgramId.String,
-		FullName:  u.FullName,
-		Nickname:  u.Nickname.String,
-		Gender:    u.Gender.String,
-		Email:     u.Email,
-		Picture:   u.Picture.String,
+		Id:          u.Id,
+		ProgramId:   u.ProgramId.String,
+		FullName:    u.FullName,
+		Nickname:    u.Nickname.String,
+		CurrentYear: u.CurrentYear.Int16,
+		Gender:      u.Gender.String,
+		Email:       u.Email,
+		Picture:     u.Picture.String,
 	}
 }
 

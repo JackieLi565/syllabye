@@ -26,7 +26,13 @@ mkdir -p "$PKG_DIR"
 # Install optional requirements
 if [ -f "$REQUIREMENTS" ]; then
   echo "Installing dependencies from $REQUIREMENTS..."
-  python3 -m pip install -r "$REQUIREMENTS" --target "$PKG_DIR"
+  python3 -m pip install \
+    --python-version 3.11 \
+    --platform manylinux2014_x86_64 \
+    --implementation cp \
+    --only-binary=:all: \
+    -r "$REQUIREMENTS" \
+    --target "$PKG_DIR"
 fi
 
 echo "Copying lambda.py..."
