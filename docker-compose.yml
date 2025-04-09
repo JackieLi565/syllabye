@@ -16,7 +16,7 @@ services:
       start_period: 30s
       timeout: 10s
     volumes:
-      - "${POSTGRES_VOLUME:-./.postgres}:/var/lib/postgresql/data"
+      - syllabye_postgres_data:/var/lib/postgresql/data
 
   localstack:
     container_name: "${SYLLABYE_LOCALSTACK:-syllabye_localstack}"
@@ -46,3 +46,6 @@ services:
         -database=postgresql://${POSTGRES_USER:-root}:${POSTGRES_PASSWORD:-admin}@postgres:5432/${POSTGRES_DATABASE:-postgres}?sslmode=disable \
         up",
       ]
+
+volumes:
+  syllabye_postgres_data:

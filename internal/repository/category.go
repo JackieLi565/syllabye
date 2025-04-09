@@ -108,7 +108,7 @@ func (cc *pgCourseCategoryRepository) listCourseCategoriesQuery(nameFilter strin
 	)
 
 	if nameFilter != "" {
-		qb = qb.Concat("and name ilike", "%"+nameFilter+"%")
+		qb = qb.Concat("and name ilike $%d", "%"+nameFilter+"%")
 	}
 
 	return qb.Result()

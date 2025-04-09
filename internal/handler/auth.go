@@ -74,6 +74,7 @@ func (ah *authHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request
 }
 
 // ProviderCallback handles the OAuth2 internal callback from the OpenID provider.
+// ProviderCallback handles the OAuth2 internal callback from the OpenID provider.
 func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	code := query.Get("code")
@@ -128,6 +129,7 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 		"id":     sessionId,
 		"userId": userId,
 	})
+
 	if err != nil {
 		ah.log.Error("failed to encode session token", logger.Err(err))
 		http.Error(w, "Unable to create session for user.", http.StatusInternalServerError)
@@ -184,8 +186,6 @@ func (ah *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 // @Router /me [get]
 // @Security Session
 func (ah *authHandler) SessionCheck(w http.ResponseWriter, r *http.Request) {
-	ah.log.Info("session checked")
-
 	sessionCookie, err := r.Cookie(config.SessionCookie)
 	if err != nil {
 		http.Error(w, "Cookie not found.", http.StatusUnauthorized)
@@ -201,6 +201,7 @@ func (ah *authHandler) SessionCheck(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(session)
 }
 
+// AuthMiddleware secures endpoints with both session and bearer token authorization.
 func (ah *authHandler) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check for session auth first

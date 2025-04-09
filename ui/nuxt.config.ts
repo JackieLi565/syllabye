@@ -39,6 +39,14 @@ export default defineNuxtConfig({
     dataValue: 'theme', // Adds `data-theme="dark"` to <html>
     classSuffix: '',
   },
+  runtimeConfig: {
+    public: {
+      googleAuth: '',
+      googleRedirectUrl: '',
+      apiUrl: '',
+      siteUrl: ''
+    }
+  },
   app: {
     head: {
       title: 'Syllabye',
@@ -48,6 +56,6 @@ export default defineNuxtConfig({
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
       ]
-    }
+    },
   }
 })
