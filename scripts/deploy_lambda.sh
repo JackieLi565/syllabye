@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# zip_lambda_package.sh build and packages lambda functions
+# deploy_lambda.sh build and packages lambda functions.
 
 set -e
 
