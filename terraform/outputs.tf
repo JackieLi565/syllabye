@@ -1,4 +1,3 @@
 output "sqs_webhook_queue_url" {
-  description = "URL of the WebhookQueue"
-  value       = aws_sqs_queue.webhook.id
+  value = module.webhook_queue.queue_url
 }

@@ -14,6 +14,11 @@ variable "aws_lambda_endpoint" {}
 
 variable "aws_sqs_endpoint" {}
 
+variable "aws_s3_thumbnail_bucket" {
+  type        = string
+  description = "Name of thumbnail bucket"
+}
+
 variable "env" {
   default = "development"
 }
