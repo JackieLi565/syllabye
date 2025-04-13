@@ -7,6 +7,7 @@ create table users
     current_year  smallint check (current_year > 0 and current_year <= 8),
     gender        text check (gender in ('Male', 'Female', 'Other')),
     email         text      not null unique,
+    bio           text,
     picture       text,
     is_active     boolean   not null default false,
     date_added    timestamp not null default now(),
