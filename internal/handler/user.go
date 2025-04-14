@@ -12,6 +12,7 @@ import (
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/util"
 	"github.com/go-chi/chi/v5"
+	"github.com/oapi-codegen/nullable"
 )
 
 type userHandler struct {
@@ -26,11 +27,23 @@ func NewUserHandler(log logger.Logger, user repository.UserRepository) *userHand
 	}
 }
 
+type UserResponse struct {
+	Id          string                    `json:"id"`
+	ProgramId   nullable.Nullable[string] `json:"programId,omitempty" swaggertype:"primitive,string" extensions:"x-nullable"`
+	FullName    string                    `json:"fullname,omitempty"`
+	Nickname    nullable.Nullable[string] `json:"nickname,omitempty" swaggertype:"primitive,string" extensions:"x-nullable"`
+	CurrentYear nullable.Nullable[int16]  `json:"currentYear,omitempty" swaggertype:"primitive,string" extensions:"x-nullable"`
+	Gender      nullable.Nullable[string] `json:"gender,omitempty" swaggertype:"primitive,string" extensions:"x-nullable"`
+	Email       string                    `json:"email,omitempty"`
+	Picture     nullable.Nullable[string] `json:"picture,omitempty" swaggertype:"primitive,string" extensions:"x-nullable"`
+	Bio         nullable.Nullable[string] `json:"bio,omitempty" swaggertype:"primitive,string" extensions:"x-nullable"`
+} //@name UserResponse
+
 // GetUser retrieves a user by ID.
 // @Summary Get a user
 // @Tags User
 // @Param userId path string true "User ID"
-// @Success 200 {object} model.User
+// @Success 200 {object} UserResponse
 // @Failure 400 {string} string
 // @Failure 404 {string} string
 // @Failure 500 {string} string
@@ -43,7 +56,7 @@ func (u *userHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userId := chi.URLParam(r, "userId")
-	iUser, err := u.userRepo.GetUser(r.Context(), userId)
+	user, err := u.userRepo.GetUser(r.Context(), userId)
 	if err != nil {
 		if errors.Is(err, util.ErrNotFound) {
 			http.Error(w, "User not found.", http.StatusNotFound)
@@ -57,14 +70,32 @@ func (u *userHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(model.ToUser(iUser))
+	json.NewEncoder(w).Encode(UserResponse{
+		Id:          user.Id,
+		ProgramId:   util.DefaultNullable(user.ProgramId.Valid, user.ProgramId.String),
+		FullName:    user.FullName,
+		Nickname:    util.DefaultNullable(user.Nickname.Valid, user.Nickname.String),
+		CurrentYear: util.DefaultNullable(user.CurrentYear.Valid, user.CurrentYear.Int16),
+		Gender:      util.DefaultNullable(user.Gender.Valid, user.Gender.String),
+		Email:       user.Email,
+		Picture:     util.DefaultNullable(user.Picture.Valid, user.Picture.String),
+		Bio:         util.DefaultNullable(user.Bio.Valid, user.Bio.String),
+	})
 }
+
+type UpdateUserRequest struct {
+	ProgramId   nullable.Nullable[string] `json:"programId" swaggertype:"primitive,string" extensions:"x-nullable"`
+	Nickname    nullable.Nullable[string] `json:"nickname" swaggertype:"primitive,string" extensions:"x-nullable"`
+	CurrentYear nullable.Nullable[int16]  `json:"currentYear" swaggertype:"primitive,integer" extensions:"x-nullable"`
+	Gender      nullable.Nullable[string] `json:"gender" swaggertype:"primitive,string" extensions:"x-nullable"`
+	Bio         nullable.Nullable[string] `json:"bio" swaggertype:"primitive,string" extensions:"x-nullable"`
+} //@name UpdateUserRequest
 
 // UpdateUser modifies a user's profile data.
 // @Summary Update a user
 // @Tags User
 // @Param userId path string true "User ID"
-// @Param body body model.UpdateUser true "Updated user data"
+// @Param body body UpdateUserRequest true "Updated user data"
 // @Success 201 {string} string
 // @Header 201 {string} Location "URL to access the updated user"
 // @Failure 400 {string} string
@@ -88,17 +119,18 @@ func (u *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var body model.UpdateUser
+	var body UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	err := u.userRepo.UpdateUser(r.Context(), userId, model.TUser{
+	err := u.userRepo.UpdateUser(r.Context(), userId, repository.UpdateUser{
 		ProgramId:   body.ProgramId,
 		Nickname:    body.Nickname,
 		CurrentYear: body.CurrentYear,
 		Gender:      body.Gender,
+		Bio:         body.Bio,
 	})
 	if err != nil {
 		if errors.Is(err, util.ErrMalformed) {

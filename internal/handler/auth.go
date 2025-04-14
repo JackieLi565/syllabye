@@ -49,7 +49,7 @@ func NewAuthHandler(log logger.Logger, user repository.UserRepository, session r
 // @Failure 500 {string} string "Unable to continue to OpenID provider"
 // @Router /providers/google [get]
 func (ah *authHandler) ConsentUrlRedirect(w http.ResponseWriter, r *http.Request) {
-	redirectUrl := ah.getValidRedirectUrl(r.URL.Query().Get("redirect"), r.Host)
+	redirectUrl := ah.getValidRedirectUrl(r.URL.Query().Get("redirect"), os.Getenv(config.Domain))
 	ah.log.Info(redirectUrl)
 
 	sessionCookie, err := r.Cookie(config.SessionCookie)

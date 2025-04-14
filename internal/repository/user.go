@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -15,13 +16,38 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/oapi-codegen/nullable"
 )
 
+type UserSchema struct {
+	Id           string
+	ProgramId    sql.NullString
+	FullName     string
+	Nickname     sql.NullString
+	CurrentYear  sql.NullInt16
+	Gender       sql.NullString
+	Email        string
+	Bio          sql.NullString
+	Picture      sql.NullString
+	IsActive     bool
+	DateAdded    time.Time
+	DateModified time.Time
+}
+
+type UpdateUser struct {
+	ProgramId   nullable.Nullable[string]
+	Nickname    nullable.Nullable[string]
+	CurrentYear nullable.Nullable[int16]
+	Gender      nullable.Nullable[string]
+	Bio         nullable.Nullable[string]
+}
+
 type UserRepository interface {
-	GetUser(ctx context.Context, userId string) (model.IUser, error)
+	GetUser(ctx context.Context, userId string) (UserSchema, error)
 	LoginOrRegisterUser(ctx context.Context, openId openid.StandardClaims) (string, error)
-	UpdateUser(ctx context.Context, userId string, entity model.TUser) error
+	UpdateUser(ctx context.Context, userId string, entity UpdateUser) error
 	SearchUserNickname(ctx context.Context, nickname string) (bool, error)
+
 	AddUserCourse(ctx context.Context, userId string, entity model.TUserCourse) error
 	DeleteUserCourse(ctx context.Context, userId string, courseId string) error
 	UpdateUserCourse(ctx context.Context, userId string, courseId string, entity model.TUserCourse) error
@@ -40,31 +66,31 @@ func NewPgUserRepository(db *database.PostgresDb, log logger.Logger) *pgUserRepo
 	}
 }
 
-func (u *pgUserRepository) GetUser(ctx context.Context, userId string) (model.IUser, error) {
-	var user model.IUser
+func (u *pgUserRepository) GetUser(ctx context.Context, userId string) (UserSchema, error) {
 
 	res, err := u.getUserQuery(userId)
 	if err != nil {
-		return user, err
+		return UserSchema{}, err
 	}
 
+	var userSchema UserSchema
 	err = u.db.Pool.QueryRow(ctx, res.Query, res.Args...).Scan(
-		&user.Id, &user.ProgramId, &user.FullName, &user.Nickname, &user.CurrentYear, &user.Gender, &user.Email,
-		&user.Picture, &user.IsActive, &user.DateAdded, &user.DateModified,
+		&userSchema.Id, &userSchema.ProgramId, &userSchema.FullName, &userSchema.Nickname, &userSchema.CurrentYear, &userSchema.Gender, &userSchema.Email,
+		&userSchema.Picture, &userSchema.IsActive, &userSchema.DateAdded, &userSchema.DateModified, &userSchema.Bio,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return user, util.ErrNotFound
+			return UserSchema{}, util.ErrNotFound
 		}
 
 		u.log.Error("get user query failed", logger.Err(err))
-		return user, util.ErrInternal
+		return UserSchema{}, util.ErrInternal
 	}
 
-	return user, nil
+	return userSchema, nil
 }
 
-func (u *pgUserRepository) UpdateUser(ctx context.Context, userId string, entity model.TUser) error {
+func (u *pgUserRepository) UpdateUser(ctx context.Context, userId string, entity UpdateUser) error {
 	res, err := u.updateUserQuery(userId, entity)
 	if err != nil {
 		return err
@@ -89,6 +115,73 @@ func (u *pgUserRepository) UpdateUser(ctx context.Context, userId string, entity
 	}
 
 	return nil
+}
+
+func (u *pgUserRepository) updateUserQuery(userId string, entity UpdateUser) (util.SqlBuilderResult, error) {
+	var userUuid pgtype.UUID
+	err := userUuid.Scan(userId)
+	if err != nil {
+		u.log.Info("invalid user id")
+		return util.SqlBuilderResult{}, util.ErrMalformed
+	}
+
+	qb := util.NewSqlBuilder("update users set id = id")
+
+	if entity.ProgramId.IsSpecified() {
+		stm := ",program_id = $%d"
+		programId, err := entity.ProgramId.Get()
+		if err != nil {
+			qb.Concat(stm, nil)
+		} else {
+			var programUuid pgtype.UUID
+			err := programUuid.Scan(programId)
+			if err != nil {
+				u.log.Info("invalid program id")
+				return util.SqlBuilderResult{}, util.ErrMalformed
+			}
+
+			qb = qb.Concat(stm, programUuid)
+		}
+	}
+	if entity.Nickname.IsSpecified() {
+		stm := ",nickname = $%d"
+		nickname, err := entity.Nickname.Get()
+		if err != nil {
+			qb.Concat(stm, nil)
+		} else {
+			qb.Concat(stm, nickname)
+		}
+	}
+	if entity.CurrentYear.IsSpecified() {
+		stm := ",current_year = $%d"
+		currentYear, err := entity.CurrentYear.Get()
+		if err != nil {
+			qb.Concat(stm, nil)
+		} else {
+			qb.Concat(stm, currentYear)
+		}
+	}
+	if entity.Gender.IsSpecified() {
+		stm := ",gender = $%d"
+		gender, err := entity.Gender.Get()
+		if err != nil {
+			qb.Concat(stm, nil)
+		} else {
+			qb.Concat(stm, gender)
+		}
+	}
+	if entity.Bio.IsSpecified() {
+		bio, err := entity.Bio.Get()
+		if err != nil {
+			qb.Concat(",bio = null")
+		} else {
+			qb.Concat(",bio = $%d", bio)
+		}
+	}
+
+	qb = qb.Concat("where id = $%d", userUuid)
+
+	return qb.Result(), nil
 }
 
 func (u *pgUserRepository) LoginOrRegisterUser(ctx context.Context, openId openid.StandardClaims) (string, error) {
@@ -150,48 +243,9 @@ func (u *pgUserRepository) getUserQuery(userId string) (util.SqlBuilderResult, e
 	}
 
 	qb := util.NewSqlBuilder(
-		"select id, program_id, full_name, nickname, current_year, gender, email, picture, is_active, date_added, date_modified",
+		"select id, program_id, full_name, nickname, current_year, gender, email, picture, is_active, date_added, date_modified, bio",
 		"from users",
 	)
-	qb = qb.Concat("where id = $%d", userUuid)
-
-	return qb.Result(), nil
-}
-
-func (u *pgUserRepository) updateUserQuery(userId string, entity model.TUser) (util.SqlBuilderResult, error) {
-	var userUuid pgtype.UUID
-	err := userUuid.Scan(userId)
-	if err != nil {
-		u.log.Info("invalid user id")
-		return util.SqlBuilderResult{}, util.ErrMalformed
-	}
-
-	qb := util.NewSqlBuilder("update users")
-	qb = qb.Concat("set date_modified = $%d", time.Now())
-
-	if entity.ProgramId != "" {
-		var programUuid pgtype.UUID
-		err := programUuid.Scan(entity.ProgramId)
-		if err != nil {
-			u.log.Info("invalid program id")
-			return util.SqlBuilderResult{}, util.ErrMalformed
-		}
-
-		qb = qb.Concat(",program_id = $%d", programUuid)
-	}
-	if entity.Nickname != "" {
-		qb = qb.Concat(",nickname = $%d", entity.Nickname)
-	}
-	if entity.CurrentYear != 0 {
-		qb = qb.Concat(",current_year = $%d", entity.CurrentYear)
-	}
-	if entity.Gender != "" {
-		qb = qb.Concat(",gender = $%d", entity.Gender)
-	}
-	if entity.Picture != "" {
-		qb = qb.Concat(",picture = $%d", entity.Gender)
-	}
-
 	qb = qb.Concat("where id = $%d", userUuid)
 
 	return qb.Result(), nil
