@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
-	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/service/database"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/util"
@@ -13,9 +13,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type SessionSchema struct {
+	Id        string
+	UserId    string
+	DateAdded time.Time
+}
+
 type SessionRepository interface {
 	CreateSession(ctx context.Context, userId string) (string, error)
-	GetSession(ctx context.Context, sessionId string) (model.ISession, error)
+	GetSession(ctx context.Context, sessionId string) (SessionSchema, error)
 }
 
 type pgSessionRepository struct {
@@ -56,8 +62,8 @@ func (s *pgSessionRepository) CreateSession(ctx context.Context, userId string) 
 	return sessionId, nil
 }
 
-func (s *pgSessionRepository) GetSession(ctx context.Context, sessionId string) (model.ISession, error) {
-	var session model.ISession
+func (s *pgSessionRepository) GetSession(ctx context.Context, sessionId string) (SessionSchema, error) {
+	var session SessionSchema
 	var sessionUuid pgtype.UUID
 	err := sessionUuid.Scan(sessionId)
 	if err != nil {

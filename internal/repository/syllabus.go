@@ -7,26 +7,69 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/service/database"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/util"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/oapi-codegen/nullable"
 )
 
+type SyllabusSchema struct {
+	Id          string
+	UserId      string
+	CourseId    string
+	File        string
+	FileSize    int
+	ContentType string
+	Year        int16
+	Semester    string
+	DateAdded   time.Time
+	DateSynced  sql.NullTime
+}
+
+type InsertSyllabus struct {
+	UserId      string
+	CourseId    string
+	File        string
+	FileSize    int
+	ContentType string
+	Checksum    string
+	Year        int16
+	Semester    string
+}
+
+type UpdateSyllabus struct {
+	Year     nullable.Nullable[int16]
+	Semester nullable.Nullable[string]
+}
+
+type SyllabusFilters struct {
+	UserId   string
+	CourseId string
+	Year     *int16
+	Semester string
+}
+
+type SyllabusLikeSchema struct {
+	SyllabusId string
+	UserId     string
+	IsDislike  bool
+	DateAdded  time.Time
+}
+
 type SyllabusRepository interface {
-	GetAndViewSyllabus(ctx context.Context, userId string, syllabusId string) (model.ISyllabus, error)
-	CreateSyllabus(ctx context.Context, syllabus model.TSyllabus) (string, error)
-	ListSyllabi(ctx context.Context, userId string, filters model.SyllabusFilters, paginate util.Paginate) ([]model.ISyllabus, error)
+	GetAndViewSyllabus(ctx context.Context, userId string, syllabusId string) (SyllabusSchema, error)
+	CreateSyllabus(ctx context.Context, syllabus InsertSyllabus) (string, error)
+	ListSyllabi(ctx context.Context, userId string, filters SyllabusFilters, paginate util.Paginate) ([]SyllabusSchema, error)
 	DeleteSyllabus(ctx context.Context, userId string, syllabusId string) error
-	UpdateSyllabus(ctx context.Context, userId string, syllabusId string, syllabus model.TSyllabus) error
+	UpdateSyllabus(ctx context.Context, userId string, syllabusId string, syllabus UpdateSyllabus) error
 	// SyncSyllabus updates a syllabus with a valid date_synced value.
 	SyncSyllabus(ctx context.Context, syllabusId string) error
 	// VerifySyllabus verifies if a syllabus has a valid sync date, otherwise the syllabus will be removed with a return value of false.
 	VerifySyllabus(ctx context.Context, syllabusId string) (bool, error)
-	ListSyllabusLikes(ctx context.Context, syllabusId string) ([]model.ISyllabusLike, error)
+	ListSyllabusLikes(ctx context.Context, syllabusId string) ([]SyllabusLikeSchema, error)
 	LikeSyllabus(ctx context.Context, userId string, syllabusId string, dislike bool) error
 	DeleteSyllabusLike(ctx context.Context, userId string, syllabusId string) error
 }
@@ -43,21 +86,21 @@ func NewPgSyllabusRepository(db *database.PostgresDb, log logger.Logger) *pgSyll
 	}
 }
 
-func (s *pgSyllabusRepository) GetAndViewSyllabus(ctx context.Context, userId string, syllabusId string) (model.ISyllabus, error) {
+func (s *pgSyllabusRepository) GetAndViewSyllabus(ctx context.Context, userId string, syllabusId string) (SyllabusSchema, error) {
 	getResult, err := s.getActiveSyllabusQuery(userId, syllabusId)
 	viewResult, _ := s.incrementSyllabusView(userId, syllabusId) // No need to handel err (pre handle id in getSyllabusQuery)
 	if err != nil {
-		return model.ISyllabus{}, err
+		return SyllabusSchema{}, err
 	}
 
 	tx, err := s.db.Pool.Begin(ctx)
 	if err != nil {
 		s.log.Error("failed to begin transaction", logger.Err(err))
-		return model.ISyllabus{}, util.ErrInternal
+		return SyllabusSchema{}, util.ErrInternal
 	}
 	defer tx.Rollback(ctx)
 
-	syllabus := model.ISyllabus{}
+	syllabus := SyllabusSchema{}
 	err = tx.QueryRow(ctx, getResult.Query, getResult.Args...).Scan(
 		&syllabus.Id,
 		&syllabus.UserId,
@@ -73,21 +116,21 @@ func (s *pgSyllabusRepository) GetAndViewSyllabus(ctx context.Context, userId st
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			s.log.Info("syllabus not found")
-			return model.ISyllabus{}, util.ErrNotFound
+			return SyllabusSchema{}, util.ErrNotFound
 		}
 
 		s.log.Error("un-handled get syllabus error", logger.Err(err))
-		return model.ISyllabus{}, util.ErrInternal
+		return SyllabusSchema{}, util.ErrInternal
 	}
 
 	if _, err := tx.Exec(ctx, viewResult.Query, viewResult.Args...); err != nil {
 		s.log.Error("un-handled view syllabus error", logger.Err(err))
-		return model.ISyllabus{}, util.ErrInternal
+		return SyllabusSchema{}, util.ErrInternal
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		s.log.Error("failed to commit transaction", logger.Err(err))
-		return model.ISyllabus{}, util.ErrInternal
+		return SyllabusSchema{}, util.ErrInternal
 	}
 
 	return syllabus, nil
@@ -119,7 +162,7 @@ func (s *pgSyllabusRepository) getActiveSyllabusQuery(userId string, syllabusId 
 	return qb.Result(), nil
 }
 
-func (s *pgSyllabusRepository) CreateSyllabus(ctx context.Context, syllabus model.TSyllabus) (string, error) {
+func (s *pgSyllabusRepository) CreateSyllabus(ctx context.Context, syllabus InsertSyllabus) (string, error) {
 	result := s.createSyllabusQuery(syllabus)
 
 	var syllabusId string
@@ -140,7 +183,7 @@ func (s *pgSyllabusRepository) CreateSyllabus(ctx context.Context, syllabus mode
 	return syllabusId, nil
 }
 
-func (s *pgSyllabusRepository) createSyllabusQuery(sy model.TSyllabus) util.SqlBuilderResult {
+func (s *pgSyllabusRepository) createSyllabusQuery(sy InsertSyllabus) util.SqlBuilderResult {
 	qb := util.NewSqlBuilder("insert into syllabi (user_id, course_id, file, file_size, content_type, year, semester)")
 	qb.Concat("values ($%d, $%d, $%d, $%d, $%d, $%d, $%d)", sy.UserId, sy.CourseId, sy.File, sy.FileSize, sy.ContentType, sy.Year, sy.Semester)
 	qb.Concat("returning id")
@@ -148,24 +191,24 @@ func (s *pgSyllabusRepository) createSyllabusQuery(sy model.TSyllabus) util.SqlB
 	return qb.Result()
 }
 
-func (s *pgSyllabusRepository) ListSyllabi(ctx context.Context, userId string, filters model.SyllabusFilters, paginate util.Paginate) ([]model.ISyllabus, error) {
+func (s *pgSyllabusRepository) ListSyllabi(ctx context.Context, userId string, filters SyllabusFilters, paginate util.Paginate) ([]SyllabusSchema, error) {
 	result, err := s.listSyllabiQuery(userId, filters, paginate)
 	if err != nil {
-		return []model.ISyllabus{}, err
+		return []SyllabusSchema{}, err
 	}
 
 	rows, err := s.db.Pool.Query(ctx, result.Query, result.Args...)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return []model.ISyllabus{}, nil
+			return []SyllabusSchema{}, nil
 		}
 		s.log.Error("un-handled list syllabi query error", logger.Err(err))
-		return []model.ISyllabus{}, util.ErrInternal
+		return []SyllabusSchema{}, util.ErrInternal
 	}
 
-	var syllabi []model.ISyllabus
+	var syllabi []SyllabusSchema
 	for rows.Next() {
-		syllabus := model.ISyllabus{}
+		syllabus := SyllabusSchema{}
 		err := rows.Scan(
 			&syllabus.Id,
 			&syllabus.UserId,
@@ -180,7 +223,7 @@ func (s *pgSyllabusRepository) ListSyllabi(ctx context.Context, userId string, f
 		)
 		if err != nil {
 			s.log.Error("scan syllabus error", logger.Err(err))
-			return []model.ISyllabus{}, util.ErrInternal
+			return []SyllabusSchema{}, util.ErrInternal
 		}
 
 		syllabi = append(syllabi, syllabus)
@@ -189,7 +232,7 @@ func (s *pgSyllabusRepository) ListSyllabi(ctx context.Context, userId string, f
 	return syllabi, nil
 }
 
-func (s *pgSyllabusRepository) listSyllabiQuery(userId string, filters model.SyllabusFilters, paginate util.Paginate) (util.SqlBuilderResult, error) {
+func (s *pgSyllabusRepository) listSyllabiQuery(userId string, filters SyllabusFilters, paginate util.Paginate) (util.SqlBuilderResult, error) {
 	qb := util.NewSqlBuilder("select id, user_id, course_id, file, file_size, content_type, year, semester, date_added, date_synced from syllabi")
 	qb.Concat("where (date_synced is not null or user_id = $%d)", userId)
 
@@ -280,7 +323,7 @@ func (s *pgSyllabusRepository) deleteSyllabusQuery(syllabusId string) (util.SqlB
 	return qb.Result(), nil
 }
 
-func (s *pgSyllabusRepository) UpdateSyllabus(ctx context.Context, userId string, syllabusId string, syllabus model.TSyllabus) error {
+func (s *pgSyllabusRepository) UpdateSyllabus(ctx context.Context, userId string, syllabusId string, syllabus UpdateSyllabus) error {
 	result, err := s.updateSyllabusQuery(syllabusId, syllabus)
 	if err != nil {
 		return err
@@ -318,7 +361,7 @@ func (s *pgSyllabusRepository) UpdateSyllabus(ctx context.Context, userId string
 	return nil
 }
 
-func (s *pgSyllabusRepository) updateSyllabusQuery(syllabusId string, syllabus model.TSyllabus) (util.SqlBuilderResult, error) {
+func (s *pgSyllabusRepository) updateSyllabusQuery(syllabusId string, syllabus UpdateSyllabus) (util.SqlBuilderResult, error) {
 	var syllabusUuid pgtype.UUID
 	if err := syllabusUuid.Scan(syllabusId); err != nil {
 		return util.SqlBuilderResult{}, util.ErrMalformed
@@ -327,12 +370,18 @@ func (s *pgSyllabusRepository) updateSyllabusQuery(syllabusId string, syllabus m
 	qb := util.NewSqlBuilder("update syllabi")
 	qb.Concat("set date_modified = $%d", time.Now())
 
-	if syllabus.Year > 0 {
-		qb.Concat(",year = $%d", syllabus.Year)
+	if syllabus.Year.IsSpecified() {
+		year, err := syllabus.Year.Get()
+		if err != nil {
+			qb.Concat(",year = $%d", year)
+		}
 	}
 
-	if syllabus.Semester != "" {
-		qb.Concat(",semester = $%d", syllabus.Semester)
+	if syllabus.Semester.IsSpecified() {
+		semester, err := syllabus.Semester.Get()
+		if err != nil {
+			qb.Concat(",semester = $%d", semester)
+		}
 	}
 
 	qb.Concat("where id = $%d", syllabusUuid)
@@ -449,25 +498,25 @@ func (s *pgSyllabusRepository) deleteSyllabusLikeQuery(userId string, syllabusId
 	return qb.Result(), nil
 }
 
-func (s *pgSyllabusRepository) ListSyllabusLikes(ctx context.Context, syllabusId string) ([]model.ISyllabusLike, error) {
+func (s *pgSyllabusRepository) ListSyllabusLikes(ctx context.Context, syllabusId string) ([]SyllabusLikeSchema, error) {
 	result, err := s.listSyllabusLikesQuery(syllabusId)
 	if err != nil {
-		return []model.ISyllabusLike{}, err
+		return []SyllabusLikeSchema{}, err
 	}
 
 	rows, err := s.db.Pool.Query(ctx, result.Query, result.Args...)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return []model.ISyllabusLike{}, nil
+			return []SyllabusLikeSchema{}, nil
 		}
 
 		s.log.Error("un-handled list syllabus likes query error", logger.Err(err))
-		return []model.ISyllabusLike{}, util.ErrInternal
+		return []SyllabusLikeSchema{}, util.ErrInternal
 	}
 
-	likes := []model.ISyllabusLike{}
+	likes := []SyllabusLikeSchema{}
 	for rows.Next() {
-		like := model.ISyllabusLike{}
+		like := SyllabusLikeSchema{}
 		err := rows.Scan(
 			&like.SyllabusId,
 			&like.UserId,
@@ -476,7 +525,7 @@ func (s *pgSyllabusRepository) ListSyllabusLikes(ctx context.Context, syllabusId
 		)
 		if err != nil {
 			s.log.Error(fmt.Sprintf("an error occurred when scanning for syllabus likes on syllabus %s", syllabusId), logger.Err(err))
-			return []model.ISyllabusLike{}, util.ErrInternal
+			return []SyllabusLikeSchema{}, util.ErrInternal
 		}
 
 		likes = append(likes, like)

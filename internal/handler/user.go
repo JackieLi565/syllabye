@@ -27,7 +27,7 @@ func NewUserHandler(log logger.Logger, user repository.UserRepository) *userHand
 	}
 }
 
-type UserResponse struct {
+type UserRes struct {
 	Id          string                    `json:"id"`
 	ProgramId   nullable.Nullable[string] `json:"programId,omitempty" swaggertype:"primitive,string" extensions:"x-nullable"`
 	FullName    string                    `json:"fullname,omitempty"`
@@ -70,7 +70,7 @@ func (u *userHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(UserResponse{
+	json.NewEncoder(w).Encode(UserRes{
 		Id:          user.Id,
 		ProgramId:   util.DefaultNullable(user.ProgramId.Valid, user.ProgramId.String),
 		FullName:    user.FullName,
@@ -105,7 +105,7 @@ type UpdateUserRequest struct {
 // @Security Session
 // @Router /users/{userId} [patch]
 func (u *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.AuthKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(SessionPayload)
 	if !ok {
 		u.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -147,11 +147,17 @@ func (u *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+type AddUserCourseReq struct {
+	CourseId      string  `json:"courseId" validate:"required"`
+	YearTaken     *int16  `json:"yearTaken"`
+	SemesterTaken *string `json:"semesterTaken"`
+} //@name CreateUserCourseRequest
+
 // AddUserCourse adds a course to a user's academic history.
 // @Summary Add a user course
 // @Tags User
 // @Param userId path string true "User ID"
-// @Param body body model.CreateUserCourse true "User course data"
+// @Param body body CreateUserCourseRequest true "User course data"
 // @Success 201 {string} string
 // @Failure 400 {string} string
 // @Failure 403 {string} string
@@ -160,7 +166,7 @@ func (u *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /users/{userId}/courses [post]
 func (u *userHandler) AddUserCourse(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.AuthKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(SessionPayload)
 	if !ok {
 		u.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -173,7 +179,7 @@ func (u *userHandler) AddUserCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var body model.CreateUserCourse
+	var body AddUserCourseReq
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body.", http.StatusBadRequest)
 		return
@@ -184,7 +190,7 @@ func (u *userHandler) AddUserCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := u.userRepo.AddUserCourse(r.Context(), session.UserId, model.TUserCourse{
+	err := u.userRepo.AddUserCourse(r.Context(), session.UserId, repository.InsertUserCourse{
 		CourseId:      body.CourseId,
 		YearTaken:     body.YearTaken,
 		SemesterTaken: body.SemesterTaken,
@@ -216,7 +222,7 @@ func (u *userHandler) AddUserCourse(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /users/{userId}/courses/{courseId} [delete]
 func (u *userHandler) DeleteUserCourse(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.AuthKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(SessionPayload)
 	if !ok {
 		u.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -244,12 +250,17 @@ func (u *userHandler) DeleteUserCourse(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+type UpdateUserCourseReq struct {
+	YearTaken     nullable.Nullable[int16]  `json:"yearTaken,omitempty" swaggertype:"primitive,integer" extensions:"x-nullable"`
+	SemesterTaken nullable.Nullable[string] `json:"semesterTaken,omitempty" swaggertype:"primitive,string" extensions:"x-nullable"`
+} //@name UpdateUserCourseRequest
+
 // UpdateUserCourse updates a user's course information.
 // @Summary Update a user course
 // @Tags User
 // @Param userId path string true "User ID"
 // @Param courseId path string true "Course ID"
-// @Param body body model.UpdateUserCourse true "Updated course data"
+// @Param body body UpdateUserCourseRequest true "Updated course data"
 // @Success 204 {string} string
 // @Failure 400 {string} string
 // @Failure 403 {string} string
@@ -259,7 +270,7 @@ func (u *userHandler) DeleteUserCourse(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /users/{userId}/courses/{courseId} [patch]
 func (u *userHandler) UpdateUserCourse(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.AuthKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(SessionPayload)
 	if !ok {
 		u.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -272,20 +283,15 @@ func (u *userHandler) UpdateUserCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var body model.UpdateUserCourse
+	var body UpdateUserCourseReq
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body.", http.StatusBadRequest)
 		return
 	}
 
-	if body.SemesterTaken == "" || body.YearTaken == 0 {
-		http.Error(w, "Invalid or missing request body fields.", http.StatusBadRequest)
-		return
-	}
-
-	err := u.userRepo.UpdateUserCourse(r.Context(), session.UserId, chi.URLParam(r, "courseId"), model.TUserCourse{
-		YearTaken:     &body.YearTaken,
-		SemesterTaken: &body.SemesterTaken,
+	err := u.userRepo.UpdateUserCourse(r.Context(), session.UserId, chi.URLParam(r, "courseId"), repository.UpdateUserCourse{
+		YearTaken:     body.YearTaken,
+		SemesterTaken: body.SemesterTaken,
 	})
 	if err != nil {
 		if errors.Is(err, util.ErrNotFound) {
@@ -303,6 +309,14 @@ func (u *userHandler) UpdateUserCourse(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+type UserCourseRes struct {
+	CourseId      string                    `json:"courseId"`
+	Title         string                    `json:"title"`
+	Course        string                    `json:"course"`
+	YearTaken     nullable.Nullable[int16]  `json:"yearTaken" swaggertype:"primitive,integer" extensions:"x-nullable"`
+	SemesterTaken nullable.Nullable[string] `json:"semesterTaken" swaggertype:"primitive,integer" extensions:"x-nullable"`
+} //@name UserCourseResponse
+
 // ListUserCourses retrieves a paginated list of a user's courses.
 // @Summary List user courses
 // @Tags User
@@ -311,7 +325,7 @@ func (u *userHandler) UpdateUserCourse(w http.ResponseWriter, r *http.Request) {
 // @Param category query string false "Filter by category ID"
 // @Param page query string false "Page number (default: 1)"
 // @Param size query string false "Page size (default: 25)"
-// @Success 200 {array} model.UserCourse
+// @Success 200 {array} UserCourseResponse
 // @Failure 500 {string} string
 // @Security Session
 // @Router /users/{userId}/courses [get]
@@ -340,14 +354,14 @@ func (u *userHandler) ListUserCourses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userCourses := make([]model.UserCourse, 0, len(courses))
+	userCourses := make([]UserCourseRes, 0, len(courses))
 	for _, course := range courses {
-		userCourses = append(userCourses, model.UserCourse{
+		userCourses = append(userCourses, UserCourseRes{
 			CourseId:      course.CourseId,
 			Title:         course.Title,
 			Course:        course.Course,
-			YearTaken:     course.YearTaken.Int16,
-			SemesterTaken: course.SemesterTaken.String,
+			YearTaken:     util.DefaultNullable(course.YearTaken.Valid, course.YearTaken.Int16),
+			SemesterTaken: util.DefaultNullable(course.SemesterTaken.Valid, course.SemesterTaken.String),
 		})
 	}
 
@@ -355,11 +369,15 @@ func (u *userHandler) ListUserCourses(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(userCourses)
 }
 
+type NicknameExistsRes struct {
+	Exists bool
+} //@name NicknameExistsResponse
+
 // SearchUserNickname checks if a user nickname exists.
 // @Summary Check existing nickname
 // @Tags User
 // @Param search query string false "Search user nickname"
-// @Success 200 {object} model.UserNicknameExists
+// @Success 200 {object} NicknameExistsResponse
 // @Failure 500 {string} string
 // @Security Session
 // @Router /users/exists [get]
@@ -367,7 +385,7 @@ func (u *userHandler) SearchUserNickname(w http.ResponseWriter, r *http.Request)
 	search := r.URL.Query().Get("search")
 	if search == "" {
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(model.UserNicknameExists{
+		json.NewEncoder(w).Encode(NicknameExistsRes{
 			Exists: false,
 		})
 		return
@@ -380,7 +398,7 @@ func (u *userHandler) SearchUserNickname(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(model.UserNicknameExists{
+	json.NewEncoder(w).Encode(NicknameExistsRes{
 		Exists: exists,
 	})
 }

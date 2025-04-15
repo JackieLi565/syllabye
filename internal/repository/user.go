@@ -42,16 +42,38 @@ type UpdateUser struct {
 	Bio         nullable.Nullable[string]
 }
 
+type UserCourseSchema struct {
+	UserId        string
+	CourseId      string
+	Title         string
+	Course        string
+	YearTaken     sql.NullInt16
+	SemesterTaken sql.NullString
+	DateAdded     time.Time
+	DateModified  time.Time
+}
+
+type InsertUserCourse struct {
+	CourseId      string
+	YearTaken     *int16
+	SemesterTaken *string
+}
+
+type UpdateUserCourse struct {
+	YearTaken     nullable.Nullable[int16]
+	SemesterTaken nullable.Nullable[string]
+}
+
 type UserRepository interface {
 	GetUser(ctx context.Context, userId string) (UserSchema, error)
 	LoginOrRegisterUser(ctx context.Context, openId openid.StandardClaims) (string, error)
 	UpdateUser(ctx context.Context, userId string, entity UpdateUser) error
 	SearchUserNickname(ctx context.Context, nickname string) (bool, error)
 
-	AddUserCourse(ctx context.Context, userId string, entity model.TUserCourse) error
+	AddUserCourse(ctx context.Context, userId string, entity InsertUserCourse) error
 	DeleteUserCourse(ctx context.Context, userId string, courseId string) error
-	UpdateUserCourse(ctx context.Context, userId string, courseId string, entity model.TUserCourse) error
-	ListUserCourses(ctx context.Context, userId string, filters model.CourseFilters, paginate util.Paginate) ([]model.IUserCourse, error)
+	UpdateUserCourse(ctx context.Context, userId string, courseId string, entity UpdateUserCourse) error
+	ListUserCourses(ctx context.Context, userId string, filters model.CourseFilters, paginate util.Paginate) ([]UserCourseSchema, error)
 }
 
 type pgUserRepository struct {
@@ -269,7 +291,7 @@ func (u *pgUserRepository) registerUserQuery(openId openid.StandardClaims) util.
 	return qb.Result()
 }
 
-func (u *pgUserRepository) AddUserCourse(ctx context.Context, userId string, entity model.TUserCourse) error {
+func (u *pgUserRepository) AddUserCourse(ctx context.Context, userId string, entity InsertUserCourse) error {
 	result, err := u.addUserCourseQuery(userId, entity)
 	if err != nil {
 		return err
@@ -294,7 +316,7 @@ func (u *pgUserRepository) AddUserCourse(ctx context.Context, userId string, ent
 	return nil
 }
 
-func (u *pgUserRepository) addUserCourseQuery(userId string, entity model.TUserCourse) (util.SqlBuilderResult, error) {
+func (u *pgUserRepository) addUserCourseQuery(userId string, entity InsertUserCourse) (util.SqlBuilderResult, error) {
 	courseUuid, err := database.ParsePgUuid(entity.CourseId)
 	if err != nil {
 		return util.SqlBuilderResult{}, err
@@ -339,7 +361,7 @@ func (u *pgUserRepository) deleteUserCourseQuery(userId string, courseId string)
 	return qb.Result(), nil
 }
 
-func (u *pgUserRepository) UpdateUserCourse(ctx context.Context, userId string, courseId string, entity model.TUserCourse) error {
+func (u *pgUserRepository) UpdateUserCourse(ctx context.Context, userId string, courseId string, entity UpdateUserCourse) error {
 	result, err := u.updateUserCourseQuery(userId, courseId, entity)
 	if err != nil {
 		return err
@@ -367,7 +389,7 @@ func (u *pgUserRepository) UpdateUserCourse(ctx context.Context, userId string, 
 	return nil
 }
 
-func (u *pgUserRepository) updateUserCourseQuery(userId string, courseId string, entity model.TUserCourse) (util.SqlBuilderResult, error) {
+func (u *pgUserRepository) updateUserCourseQuery(userId string, courseId string, entity UpdateUserCourse) (util.SqlBuilderResult, error) {
 	courseUuid, err := database.ParsePgUuid(courseId)
 	if err != nil {
 		return util.SqlBuilderResult{}, err
@@ -390,22 +412,22 @@ func (u *pgUserRepository) updateUserCourseQuery(userId string, courseId string,
 	return qb.Result(), nil
 }
 
-func (u *pgUserRepository) ListUserCourses(ctx context.Context, userId string, filters model.CourseFilters, paginate util.Paginate) ([]model.IUserCourse, error) {
+func (u *pgUserRepository) ListUserCourses(ctx context.Context, userId string, filters model.CourseFilters, paginate util.Paginate) ([]UserCourseSchema, error) {
 	result := u.listUserCoursesQuery(userId, filters, paginate)
 
 	rows, err := u.db.Pool.Query(context.TODO(), result.Query, result.Args...)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return []model.IUserCourse{}, nil
+			return []UserCourseSchema{}, nil
 		}
 
 		u.log.Error("un-handled list user course query error", logger.Err(err))
-		return []model.IUserCourse{}, util.ErrInternal
+		return []UserCourseSchema{}, util.ErrInternal
 	}
 
-	var courses []model.IUserCourse
+	var courses []UserCourseSchema
 	for rows.Next() {
-		course := model.IUserCourse{}
+		course := UserCourseSchema{}
 		err := rows.Scan(
 			&course.UserId,
 			&course.CourseId,

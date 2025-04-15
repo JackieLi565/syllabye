@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/JackieLi565/syllabye/internal/config"
-	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/repository"
 	"github.com/JackieLi565/syllabye/internal/service/authorizer"
 	"github.com/JackieLi565/syllabye/internal/service/bucket"
@@ -16,6 +15,7 @@ import (
 	"github.com/JackieLi565/syllabye/internal/service/queue"
 	"github.com/JackieLi565/syllabye/internal/util"
 	"github.com/go-chi/chi/v5"
+	"github.com/oapi-codegen/nullable"
 )
 
 type syllabusHandler struct {
@@ -36,11 +36,24 @@ func NewSyllabusHandler(log logger.Logger, syllabus repository.SyllabusRepositor
 	}
 }
 
+type SyllabusRes struct {
+	Id          string `json:"id"`
+	UserId      string `json:"userId"`
+	CourseId    string `json:"courseId"`
+	File        string `json:"fileName"`
+	FileSize    int    `json:"fileSize"`
+	ContentType string `json:"contentType"`
+	Year        int16  `json:"year"`
+	Semester    string `json:"semester"`
+	DateAdded   int64  `json:"dateAdded"`
+	Received    bool   `json:"received"`
+} //@name SyllabusResponse
+
 // GetSyllabus retrieves a specific syllabus by ID and returns a signed URL in the header.
 // @Summary Get a syllabus
 // @Tags Syllabus
 // @Param syllabusId path string true "Syllabus ID"
-// @Success 200 {object} model.Syllabus
+// @Success 200 {object} SyllabusResponse
 // @Header 200 {string} X-Presigned-Url "Presigned URL to access the syllabus file"
 // @Failure 400 {string} string
 // @Failure 404 {string} string
@@ -48,7 +61,7 @@ func NewSyllabusHandler(log logger.Logger, syllabus repository.SyllabusRepositor
 // @Security Session
 // @Router /syllabi/{syllabusId} [get]
 func (s *syllabusHandler) GetSyllabus(w http.ResponseWriter, r *http.Request) {
-	sessionValue, ok := r.Context().Value(config.AuthKey).(model.Session)
+	sessionValue, ok := r.Context().Value(config.AuthKey).(SessionPayload)
 	if !ok {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -76,14 +89,35 @@ func (s *syllabusHandler) GetSyllabus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("X-Presigned-Url", signedUrl)
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(model.ToSyllabus(syllabus))
+	json.NewEncoder(w).Encode(SyllabusRes{
+		Id:          syllabus.Id,
+		UserId:      syllabus.UserId,
+		CourseId:    syllabus.CourseId,
+		File:        syllabus.File,
+		FileSize:    syllabus.FileSize,
+		ContentType: syllabus.ContentType,
+		Year:        syllabus.Year,
+		Semester:    syllabus.Semester,
+		DateAdded:   syllabus.DateAdded.UnixMicro(),
+		Received:    syllabus.DateSynced.Valid,
+	})
 }
+
+type AddSyllabusReq struct {
+	CourseId    string `json:"courseId" validate:"required"`
+	File        string `json:"fileName" validate:"required"`
+	FileSize    int    `json:"fileSize" validate:"required"`
+	ContentType string `json:"contentType" validate:"required"`
+	Checksum    string `json:"checksum" validate:"required"`
+	Year        int16  `json:"year" validate:"required"`
+	Semester    string `json:"semester" validate:"required"`
+} //@name CreateSyllabusRequest
 
 // CreateSyllabus creates a new syllabus and returns a presigned upload URL in the response header.
 // @Summary Create a syllabus
 // @Tags Syllabus
 // @Accept json
-// @Param body body model.CreateSyllabus true "Syllabus data"
+// @Param body body CreateSyllabusRequest true "Syllabus data"
 // @Success 201 {string} string
 // @Header 201 {string} X-Presigned-Url "Presigned URL to upload the syllabus file"
 // @Header 201 {string} Location "URL to access the created syllabus"
@@ -92,20 +126,20 @@ func (s *syllabusHandler) GetSyllabus(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /syllabi [post]
 func (s *syllabusHandler) CreateSyllabus(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.AuthKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(SessionPayload)
 	if !ok {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
 		return
 	}
 
-	var body model.CreateSyllabus
+	var body AddSyllabusReq
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	syllabusId, err := s.syllabusRepo.CreateSyllabus(r.Context(), model.TSyllabus{
+	syllabusId, err := s.syllabusRepo.CreateSyllabus(r.Context(), repository.InsertSyllabus{
 		UserId:      session.UserId,
 		CourseId:    body.CourseId,
 		File:        body.File,
@@ -157,13 +191,13 @@ func (s *syllabusHandler) CreateSyllabus(w http.ResponseWriter, r *http.Request)
 // @Param semester query string false "Filter by semester"
 // @Param page query int false "Page number (default: 1)"
 // @Param size query int false "Page size (default: 10)"
-// @Success 200 {array} model.Syllabus
+// @Success 200 {array} SyllabusResponse
 // @Failure 400 {string} string
 // @Failure 500 {string} string
 // @Security Session
 // @Router /syllabi [get]
 func (s *syllabusHandler) ListSyllabi(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.AuthKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(SessionPayload)
 	if !ok {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -179,7 +213,7 @@ func (s *syllabusHandler) ListSyllabi(w http.ResponseWriter, r *http.Request) {
 		year = &yearInt16
 	}
 
-	syllabi, err := s.syllabusRepo.ListSyllabi(r.Context(), session.UserId, model.SyllabusFilters{
+	syllabi, err := s.syllabusRepo.ListSyllabi(r.Context(), session.UserId, repository.SyllabusFilters{
 		UserId:   query.Get("userId"),
 		CourseId: query.Get("courseId"),
 		Year:     year,
@@ -194,20 +228,36 @@ func (s *syllabusHandler) ListSyllabi(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	publicSyllabi := make([]model.Syllabus, 0, len(syllabi))
+	publicSyllabi := make([]SyllabusRes, 0, len(syllabi))
 	for _, syllabus := range syllabi {
-		publicSyllabi = append(publicSyllabi, model.ToSyllabus(syllabus))
+		publicSyllabi = append(publicSyllabi, SyllabusRes{
+			Id:          syllabus.Id,
+			UserId:      syllabus.UserId,
+			CourseId:    syllabus.CourseId,
+			File:        syllabus.File,
+			FileSize:    syllabus.FileSize,
+			ContentType: syllabus.ContentType,
+			Year:        syllabus.Year,
+			Semester:    syllabus.Semester,
+			DateAdded:   syllabus.DateAdded.UnixMicro(),
+			Received:    syllabus.DateSynced.Valid,
+		})
 	}
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(publicSyllabi)
 }
 
+type UpdateSyllabusReq struct {
+	Year     nullable.Nullable[int16]  `json:"year" swaggertype:"primitive,integer" extensions:"x-nullable"`
+	Semester nullable.Nullable[string] `json:"semester" swaggertype:"primitive,string" extensions:"x-nullable"`
+} //@name UpdateSyllabusRequest
+
 // UpdateSyllabus updates a syllabus' metadata (year and semester).
 // @Summary Update a syllabus
 // @Tags Syllabus
 // @Param syllabusId path string true "Syllabus ID"
-// @Param body body model.UpdateSyllabus true "Updated syllabus data"
+// @Param body body UpdateSyllabusRequest true "Updated syllabus data"
 // @Success 204 {string} string
 // @Header 204 {string} Location "URL to access the updated syllabus"
 // @Failure 403 {string} string
@@ -216,21 +266,21 @@ func (s *syllabusHandler) ListSyllabi(w http.ResponseWriter, r *http.Request) {
 // @Security Session
 // @Router /syllabi/{syllabusId} [patch]
 func (s *syllabusHandler) UpdateSyllabus(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.AuthKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(SessionPayload)
 	if !ok {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
 		return
 	}
 
-	var body model.UpdateSyllabus
+	var body UpdateSyllabusReq
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	syllabusId := chi.URLParam(r, "syllabusId")
-	err := s.syllabusRepo.UpdateSyllabus(r.Context(), session.UserId, syllabusId, model.TSyllabus{
+	err := s.syllabusRepo.UpdateSyllabus(r.Context(), session.UserId, syllabusId, repository.UpdateSyllabus{
 		Year:     body.Year,
 		Semester: body.Semester,
 	})
@@ -260,7 +310,7 @@ func (s *syllabusHandler) UpdateSyllabus(w http.ResponseWriter, r *http.Request)
 // @Security Session
 // @Router /syllabi/{syllabusId} [delete]
 func (s *syllabusHandler) DeleteSyllabus(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.AuthKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(SessionPayload)
 	if !ok {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -283,11 +333,15 @@ func (s *syllabusHandler) DeleteSyllabus(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
+type SyllabusLikeReq struct {
+	Action string `json:"action"`
+} //@name SyllabusReactionRequest
+
 // SyllabusReaction registers a reaction to a syllabus.
 // @Summary React to a syllabus
 // @Tags Syllabus
 // @Param syllabusId path string true "Syllabus ID"
-// @Param body body model.SyllabusReaction true "Reaction action"
+// @Param body body SyllabusReactionRequest true "Reaction action"
 // @Success 204 {string} string
 // @Failure 400 {string} string
 // @Failure 409 {string} string
@@ -295,14 +349,14 @@ func (s *syllabusHandler) DeleteSyllabus(w http.ResponseWriter, r *http.Request)
 // @Security Session
 // @Router /syllabi/{syllabusId}/reaction [post]
 func (s *syllabusHandler) SyllabusReaction(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.AuthKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(SessionPayload)
 	if !ok {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
 		return
 	}
 
-	var body model.SyllabusReaction
+	var body SyllabusLikeReq
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -334,7 +388,7 @@ func (s *syllabusHandler) SyllabusReaction(w http.ResponseWriter, r *http.Reques
 // @Security Session
 // @Router /syllabi/{syllabusId}/reaction [delete]
 func (s *syllabusHandler) DeleteSyllabusReaction(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value(config.AuthKey).(model.Session)
+	session, ok := r.Context().Value(config.AuthKey).(SessionPayload)
 	if !ok {
 		s.log.Error("session middleware potential missing")
 		http.Error(w, "An unexpected error occurred.", http.StatusInternalServerError)
@@ -355,11 +409,18 @@ func (s *syllabusHandler) DeleteSyllabusReaction(w http.ResponseWriter, r *http.
 	w.WriteHeader(http.StatusNoContent)
 }
 
+type SyllabusLikeRes struct {
+	SyllabusId string `json:"syllabusId"`
+	UserId     string `json:"userId"`
+	IsDislike  bool   `json:"dislike"`
+	DateAdded  int64  `json:"dateReacted"`
+} //@name SyllabusReactionResponse
+
 // ListSyllabusLikes returns a list of users reactions to a syllabus.
 // @Summary List syllabus reactions
 // @Tags Syllabus
 // @Param syllabusId path string true "Syllabus ID"
-// @Success 200 {array} model.SyllabusLike
+// @Success 200 {array} SyllabusReactionResponse
 // @Failure 400 {string} string
 // @Failure 500 {string} string
 // @Security Session
@@ -383,9 +444,14 @@ func (s *syllabusHandler) ListSyllabusLikes(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	publicLikes := make([]model.SyllabusLike, 0, len(likes))
+	publicLikes := make([]SyllabusLikeRes, 0, len(likes))
 	for _, like := range likes {
-		publicLikes = append(publicLikes, model.ToSyllabusLike(like))
+		publicLikes = append(publicLikes, SyllabusLikeRes{
+			SyllabusId: like.SyllabusId,
+			UserId:     like.UserId,
+			IsDislike:  like.IsDislike,
+			DateAdded:  like.DateAdded.UnixMicro(),
+		})
 	}
 
 	w.WriteHeader(http.StatusOK)

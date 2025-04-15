@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/JackieLi565/syllabye/internal/config"
-	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/repository"
 	"github.com/JackieLi565/syllabye/internal/service/authorizer"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
@@ -181,7 +180,7 @@ func (ah *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 // @Summary Check user session
 // @Description Validates the session cookie and returns session payload if authenticated.
 // @Tags Authentication
-// @Success 200 {object} model.Session "Valid session"
+// @Success 200 {object} SessionResponse "Valid session"
 // @Failure 401 {string} string "Missing or invalid session cookie"
 // @Router /me [get]
 // @Security Session
@@ -235,27 +234,32 @@ func (ah *authHandler) AuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+type SessionPayload struct {
+	Id     string `json:"id"`
+	UserId string `json:"userId"`
+} //@name SessionResponse
+
 // decodeSessionToken decodes a token string to a session model.
-func (ah *authHandler) decodeSessionToken(tokenString string) (model.Session, error) {
+func (ah *authHandler) decodeSessionToken(tokenString string) (SessionPayload, error) {
 	claims, err := ah.jwt.DecodeJwt(tokenString)
 	if err != nil {
 		ah.log.Info("failed to decode jwt", logger.Err(err))
-		return model.Session{}, err
+		return SessionPayload{}, err
 	}
 
-	var session model.Session
+	var session SessionPayload
 	if userId, ok := claims["userId"].(string); ok {
 		session.UserId = userId
 	} else {
 		ah.log.Info("userId not found within parsed claim")
-		return model.Session{}, util.ErrMalformed
+		return SessionPayload{}, util.ErrMalformed
 	}
 
 	if id, ok := claims["id"].(string); ok {
 		session.Id = id
 	} else {
 		ah.log.Info("id not found within parsed claim")
-		return model.Session{}, util.ErrMalformed
+		return SessionPayload{}, util.ErrMalformed
 	}
 
 	return session, nil
