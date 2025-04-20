@@ -24,6 +24,11 @@ variable "aws_s3_thumbnail_bucket" {
   description = "Name of thumbnail bucket"
 }
 
+variable "domain" {
+  type        = string
+  description = "Domain name"
+}
+
 variable "env" {
   default = "development"
 }

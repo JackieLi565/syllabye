@@ -11,6 +11,7 @@ import (
 	"github.com/JackieLi565/syllabye/internal/service/authorizer"
 	"github.com/JackieLi565/syllabye/internal/service/bucket"
 	"github.com/JackieLi565/syllabye/internal/service/database"
+	"github.com/JackieLi565/syllabye/internal/service/emailer"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/service/openid"
 	"github.com/JackieLi565/syllabye/internal/service/queue"
@@ -46,11 +47,13 @@ func main() {
 	}
 	s3Client := bucket.NewS3Client(log) // TODO: remove logger in favour for panic err
 	sqsClient := queue.NewQueueClient()
+	sesClient := emailer.NewSesClient()
 
 	googleOpenId := openid.NewGoogleOpenIdProvider(log)
 	s3Presigner := bucket.NewS3Presigner(log, s3Client, os.Getenv(config.AWS_S3_SYLLABI_BUCKET))
-	jwt := authorizer.NewJwtAuthorizer(os.Getenv(config.JwtSecret))
+	jwt := authorizer.NewJwtAuthorizer(os.Getenv(config.JwtSecret)) // TODO: add logger
 	webhookQueue := queue.NewSqsWebhook(log, sqsClient)
+	sesEmailer := emailer.NewSesNoReply(log, sesClient)
 
 	// Repositories
 	pgProgramRepo := repository.NewPgProgramRepository(db, log)
@@ -185,6 +188,12 @@ func main() {
 				})
 			})
 		})
+	})
+
+	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
+		sesEmailer.SendWelcomeEmail(r.Context(), "li.jackie565@gmail.com", "Jackie Li")
+		w.WriteHeader(200)
+		w.Write([]byte("OK"))
 	})
 
 	http.ListenAndServe(os.Getenv("PORT"), r)

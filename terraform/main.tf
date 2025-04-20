@@ -32,9 +32,9 @@ data "archive_file" "zip_python_lambda" {
 }
 
 # Dev Service Only
-resource "aws_ses_email_identity" "syllabye_noreply" {
-  count = local.is_dev ? 1 : 0
-  email = "noreply@syllabye.ca"
+resource "aws_ses_domain_identity" "this" {
+  count  = local.is_dev ? 1 : 0
+  domain = var.domain
 }
 
 module "syllabus_lambda" {
