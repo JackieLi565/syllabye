@@ -3,6 +3,11 @@
 # apply_lambda_env.sh applies LAMBDA_ prefixed environment variables to each active Lambda.
 # Intended use to be for local development only. 
 
+if [ $ENV != "development" ]; then
+  echo "apply_lambda_env.sh can only be applied in development"
+  exit 1
+fi
+
 LAMBDAS=$(
   aws lambda list-functions \
   --query 'Functions[*].FunctionName' \

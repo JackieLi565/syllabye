@@ -21,6 +21,7 @@ provider "aws" {
     iam    = var.aws_iam_endpoint
     lambda = var.aws_lambda_endpoint
     sqs    = var.aws_sqs_endpoint
+    ses    = var.aws_ses_endpoint
   }
 }
 
@@ -28,6 +29,12 @@ data "archive_file" "zip_python_lambda" {
   type        = "zip"
   source_dir  = local.python_lambda_src
   output_path = local.python_lambda_zip
+}
+
+# Dev Service Only
+resource "aws_ses_email_identity" "syllabye_noreply" {
+  count = local.is_dev ? 1 : 0
+  email = "noreply@syllabye.ca"
 }
 
 module "syllabus_lambda" {

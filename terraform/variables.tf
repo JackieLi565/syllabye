@@ -6,13 +6,18 @@ variable "aws_region" {}
 
 variable "aws_s3_endpoint" {}
 
-variable "aws_s3_syllabi_bucket" {}
+variable "aws_s3_syllabi_bucket" {
+  type        = string
+  description = "Name of syllabi bucket"
+}
 
 variable "aws_iam_endpoint" {}
 
 variable "aws_lambda_endpoint" {}
 
 variable "aws_sqs_endpoint" {}
+
+variable "aws_ses_endpoint" {}
 
 variable "aws_s3_thumbnail_bucket" {
   type        = string
