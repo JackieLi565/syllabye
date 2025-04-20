@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
-	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/service/database"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/util"
@@ -13,10 +13,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type FacultySchema struct {
+	Id        string
+	Name      string
+	DateAdded time.Time
+}
+
 type FacultyRepository interface {
-	GetFaculty(ctx context.Context, facultyId string) (model.IFaculty, error)
+	GetFaculty(ctx context.Context, facultyId string) (FacultySchema, error)
 	// Not need for pagination since dataset is very small
-	ListFaculties(ctx context.Context, nameFilter string) ([]model.IFaculty, error)
+	ListFaculties(ctx context.Context, nameFilter string) ([]FacultySchema, error)
 }
 
 type pgFacultyRepository struct {
@@ -31,8 +37,8 @@ func NewPgFacultyRepository(db *database.PostgresDb, log logger.Logger) *pgFacul
 	}
 }
 
-func (f *pgFacultyRepository) GetFaculty(ctx context.Context, facultyId string) (model.IFaculty, error) {
-	var faculty model.IFaculty
+func (f *pgFacultyRepository) GetFaculty(ctx context.Context, facultyId string) (FacultySchema, error) {
+	var faculty FacultySchema
 
 	result, err := f.getFacultyQuery(facultyId)
 
@@ -51,8 +57,8 @@ func (f *pgFacultyRepository) GetFaculty(ctx context.Context, facultyId string) 
 	return faculty, nil
 }
 
-func (f *pgFacultyRepository) ListFaculties(ctx context.Context, nameFilter string) ([]model.IFaculty, error) {
-	var faculties []model.IFaculty
+func (f *pgFacultyRepository) ListFaculties(ctx context.Context, nameFilter string) ([]FacultySchema, error) {
+	var faculties []FacultySchema
 
 	result := f.listFacultiesQuery(nameFilter)
 
@@ -67,7 +73,7 @@ func (f *pgFacultyRepository) ListFaculties(ctx context.Context, nameFilter stri
 	}
 
 	for rows.Next() {
-		faculty := model.IFaculty{}
+		faculty := FacultySchema{}
 		err := rows.Scan(&faculty.Id, &faculty.Name, &faculty.DateAdded)
 		if err != nil {
 			f.log.Error("scan faculty query error", logger.Err(err))

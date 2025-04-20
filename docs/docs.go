@@ -60,7 +60,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Course"
+                                "$ref": "#/definitions/CourseResponse"
                             }
                         }
                     },
@@ -98,7 +98,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.CourseCategory"
+                                "$ref": "#/definitions/CourseCategoryResponse"
                             }
                         }
                     },
@@ -132,6 +132,12 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CourseCategoryResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -165,7 +171,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Course"
+                            "$ref": "#/definitions/CourseResponse"
                         }
                     },
                     "500": {
@@ -202,7 +208,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Faculty"
+                                "$ref": "#/definitions/FacultyResponse"
                             }
                         }
                     },
@@ -239,7 +245,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Faculty"
+                            "$ref": "#/definitions/FacultyResponse"
                         }
                     },
                     "500": {
@@ -284,7 +290,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Valid session",
                         "schema": {
-                            "$ref": "#/definitions/model.Session"
+                            "$ref": "#/definitions/SessionResponse"
                         }
                     },
                     "401": {
@@ -327,7 +333,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Program"
+                                "$ref": "#/definitions/ProgramResponse"
                             }
                         }
                     },
@@ -364,7 +370,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Program"
+                            "$ref": "#/definitions/ProgramResponse"
                         }
                     },
                     "500": {
@@ -462,7 +468,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Syllabus"
+                                "$ref": "#/definitions/SyllabusResponse"
                             }
                         }
                     },
@@ -500,7 +506,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.CreateSyllabus"
+                            "$ref": "#/definitions/CreateSyllabusRequest"
                         }
                     }
                 ],
@@ -560,7 +566,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Syllabus"
+                            "$ref": "#/definitions/SyllabusResponse"
                         },
                         "headers": {
                             "X-Presigned-Url": {
@@ -659,7 +665,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.UpdateSyllabus"
+                            "$ref": "#/definitions/UpdateSyllabusRequest"
                         }
                     }
                 ],
@@ -722,7 +728,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.SyllabusReaction"
+                            "$ref": "#/definitions/SyllabusReactionRequest"
                         }
                     }
                 ],
@@ -820,7 +826,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.SyllabusLike"
+                                "$ref": "#/definitions/SyllabusReactionResponse"
                             }
                         }
                     },
@@ -862,7 +868,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.UserNicknameExists"
+                            "$ref": "#/definitions/NicknameExistsResponse"
                         }
                     },
                     "500": {
@@ -898,7 +904,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.User"
+                            "$ref": "#/definitions/UserResponse"
                         }
                     },
                     "400": {
@@ -945,7 +951,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.UpdateUser"
+                            "$ref": "#/definitions/UpdateUserRequest"
                         }
                     }
                 ],
@@ -1039,7 +1045,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.UserCourse"
+                                "$ref": "#/definitions/UserCourseResponse"
                             }
                         }
                     },
@@ -1075,7 +1081,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.CreateUserCourse"
+                            "$ref": "#/definitions/CreateUserCourseRequest"
                         }
                     }
                 ],
@@ -1204,7 +1210,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.UpdateUserCourse"
+                            "$ref": "#/definitions/UpdateUserCourseRequest"
                         }
                     }
                 ],
@@ -1250,7 +1256,18 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "model.Course": {
+        "CourseCategoryResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "CourseResponse": {
             "type": "object",
             "properties": {
                 "categoryId": {
@@ -1259,8 +1276,9 @@ const docTemplate = `{
                 "course": {
                     "type": "string"
                 },
-                "description": {
-                    "type": "string"
+                "currentYear": {
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "id": {
                     "type": "string"
@@ -1273,19 +1291,17 @@ const docTemplate = `{
                 }
             }
         },
-        "model.CourseCategory": {
+        "CreateSyllabusRequest": {
             "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.CreateSyllabus": {
-            "type": "object",
+            "required": [
+                "checksum",
+                "contentType",
+                "courseId",
+                "fileName",
+                "fileSize",
+                "semester",
+                "year"
+            ],
             "properties": {
                 "checksum": {
                     "type": "string"
@@ -1310,8 +1326,11 @@ const docTemplate = `{
                 }
             }
         },
-        "model.CreateUserCourse": {
+        "CreateUserCourseRequest": {
             "type": "object",
+            "required": [
+                "courseId"
+            ],
             "properties": {
                 "courseId": {
                     "type": "string"
@@ -1324,7 +1343,7 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Faculty": {
+        "FacultyResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -1335,7 +1354,15 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Program": {
+        "NicknameExistsResponse": {
+            "type": "object",
+            "properties": {
+                "exists": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "ProgramResponse": {
             "type": "object",
             "properties": {
                 "faculty": {
@@ -1352,7 +1379,7 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Session": {
+        "SessionResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -1363,7 +1390,32 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Syllabus": {
+        "SyllabusReactionRequest": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                }
+            }
+        },
+        "SyllabusReactionResponse": {
+            "type": "object",
+            "properties": {
+                "dateReacted": {
+                    "type": "integer"
+                },
+                "dislike": {
+                    "type": "boolean"
+                },
+                "syllabusId": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "string"
+                }
+            }
+        },
+        "SyllabusResponse": {
             "type": "object",
             "properties": {
                 "contentType": {
@@ -1398,100 +1450,62 @@ const docTemplate = `{
                 }
             }
         },
-        "model.SyllabusLike": {
-            "type": "object",
-            "properties": {
-                "dateReacted": {
-                    "type": "integer"
-                },
-                "dislike": {
-                    "type": "boolean"
-                },
-                "syllabusId": {
-                    "type": "string"
-                },
-                "userId": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.SyllabusReaction": {
-            "type": "object",
-            "properties": {
-                "action": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.UpdateSyllabus": {
+        "UpdateSyllabusRequest": {
             "type": "object",
             "properties": {
                 "semester": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "year": {
-                    "type": "integer"
+                    "type": "integer",
+                    "x-nullable": true
                 }
             }
         },
-        "model.UpdateUser": {
-            "type": "object",
-            "properties": {
-                "currentYear": {
-                    "type": "integer"
-                },
-                "gender": {
-                    "type": "string"
-                },
-                "nickname": {
-                    "type": "string"
-                },
-                "program": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.UpdateUserCourse": {
+        "UpdateUserCourseRequest": {
             "type": "object",
             "properties": {
                 "semesterTaken": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "yearTaken": {
-                    "type": "integer"
+                    "type": "integer",
+                    "x-nullable": true
                 }
             }
         },
-        "model.User": {
+        "UpdateUserRequest": {
             "type": "object",
             "properties": {
+                "bio": {
+                    "type": "string",
+                    "x-nullable": true
+                },
                 "currentYear": {
-                    "type": "integer"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "fullname": {
-                    "type": "string"
+                    "type": "integer",
+                    "x-nullable": true
                 },
                 "gender": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
-                "id": {
-                    "type": "string"
+                "instagram": {
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "nickname": {
-                    "type": "string"
-                },
-                "picture": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "programId": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 }
             }
         },
-        "model.UserCourse": {
+        "UserCourseResponse": {
             "type": "object",
             "properties": {
                 "course": {
@@ -1501,21 +1515,57 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "semesterTaken": {
-                    "type": "string"
+                    "type": "integer",
+                    "x-nullable": true
                 },
                 "title": {
                     "type": "string"
                 },
                 "yearTaken": {
-                    "type": "integer"
+                    "type": "integer",
+                    "x-nullable": true
                 }
             }
         },
-        "model.UserNicknameExists": {
+        "UserResponse": {
             "type": "object",
             "properties": {
-                "exists": {
-                    "type": "boolean"
+                "bio": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "currentYear": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "email": {
+                    "type": "string"
+                },
+                "fullname": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "id": {
+                    "type": "string"
+                },
+                "instagram": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "nickname": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "picture": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "programId": {
+                    "type": "string",
+                    "x-nullable": true
                 }
             }
         }

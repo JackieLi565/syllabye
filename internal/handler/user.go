@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/JackieLi565/syllabye/internal/config"
-	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/repository"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/util"
@@ -37,6 +36,7 @@ type UserRes struct {
 	Email       string                    `json:"email,omitempty"`
 	Picture     nullable.Nullable[string] `json:"picture,omitempty" swaggertype:"primitive,string" extensions:"x-nullable"`
 	Bio         nullable.Nullable[string] `json:"bio,omitempty" swaggertype:"primitive,string" extensions:"x-nullable"`
+	Instagram   nullable.Nullable[string] `json:"instagram,omitempty" swaggertype:"primitive,string" extensions:"x-nullable"`
 } //@name UserResponse
 
 // GetUser retrieves a user by ID.
@@ -80,6 +80,7 @@ func (u *userHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 		Email:       user.Email,
 		Picture:     util.DefaultNullable(user.Picture.Valid, user.Picture.String),
 		Bio:         util.DefaultNullable(user.Bio.Valid, user.Bio.String),
+		Instagram:   util.DefaultNullable(user.IgHandle.Valid, user.IgHandle.String),
 	})
 }
 
@@ -89,6 +90,7 @@ type UpdateUserRequest struct {
 	CurrentYear nullable.Nullable[int16]  `json:"currentYear" swaggertype:"primitive,integer" extensions:"x-nullable"`
 	Gender      nullable.Nullable[string] `json:"gender" swaggertype:"primitive,string" extensions:"x-nullable"`
 	Bio         nullable.Nullable[string] `json:"bio" swaggertype:"primitive,string" extensions:"x-nullable"`
+	Instagram   nullable.Nullable[string] `json:"instagram" swaggertype:"primitive,string" extensions:"x-nullable"`
 } //@name UpdateUserRequest
 
 // UpdateUser modifies a user's profile data.
@@ -131,6 +133,7 @@ func (u *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		CurrentYear: body.CurrentYear,
 		Gender:      body.Gender,
 		Bio:         body.Bio,
+		IgHandle:    body.Instagram,
 	})
 	if err != nil {
 		if errors.Is(err, util.ErrMalformed) {
@@ -338,7 +341,7 @@ func (u *userHandler) ListUserCourses(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query()
-	queryFilters := model.CourseFilters{
+	queryFilters := repository.CourseFilters{
 		Search:     query.Get("search"),
 		CategoryId: query.Get("category"),
 	}

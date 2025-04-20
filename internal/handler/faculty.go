@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/JackieLi565/syllabye/internal/config"
-	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/repository"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/go-chi/chi/v5"
@@ -23,11 +22,16 @@ func NewFacultyHandler(log logger.Logger, faculty repository.FacultyRepository) 
 	}
 }
 
+type FacultyRes struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+} //@name FacultyResponse
+
 // GetFaculty retrieves a specific faculty by ID.
 // @Summary Get a faculty
 // @Tags Faculty
 // @Param facultyId path string true "Faculty ID"
-// @Success 200 {object} model.Faculty
+// @Success 200 {object} FacultyResponse
 // @Failure 500 {string} string
 // @Security Session
 // @Router /faculties/{facultyId} [get]
@@ -38,20 +42,23 @@ func (p *facultyHandler) GetFaculty(w http.ResponseWriter, r *http.Request) {
 	}
 
 	facultyId := chi.URLParam(r, "facultyId")
-	iFaculty, err := p.facultyRepo.GetFaculty(r.Context(), facultyId)
+	faculty, err := p.facultyRepo.GetFaculty(r.Context(), facultyId)
 	if err != nil {
 		http.Error(w, "Failed to get faculty", http.StatusInternalServerError)
 		return
 	}
 
-	json.NewEncoder(w).Encode(model.ToFaculty(iFaculty))
+	json.NewEncoder(w).Encode(FacultyRes{
+		Id:   faculty.Id,
+		Name: faculty.Name,
+	})
 }
 
 // ListFaculties returns a list of faculties, optionally filtered by search keyword.
 // @Summary List faculties
 // @Tags Faculty
 // @Param search query string false "Search by faculty name"
-// @Success 200 {array} model.Faculty
+// @Success 200 {array} FacultyResponse
 // @Failure 500 {string} string
 // @Security Session
 // @Router /faculties [get]
@@ -62,16 +69,19 @@ func (p *facultyHandler) ListFaculties(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query()
-	iFaculties, err := p.facultyRepo.ListFaculties(r.Context(), query.Get("search"))
+	faculties, err := p.facultyRepo.ListFaculties(r.Context(), query.Get("search"))
 	if err != nil {
 		http.Error(w, "Failed to get faculties", http.StatusInternalServerError)
 		return
 	}
 
-	faculties := make([]model.Faculty, 0, len(iFaculties))
-	for _, iFaculty := range iFaculties {
-		faculties = append(faculties, model.ToFaculty(iFaculty))
+	facultyRes := make([]FacultyRes, 0, len(faculties))
+	for _, faculty := range faculties {
+		facultyRes = append(facultyRes, FacultyRes{
+			Id:   faculty.Id,
+			Name: faculty.Name,
+		})
 	}
 
-	json.NewEncoder(w).Encode(faculties)
+	json.NewEncoder(w).Encode(facultyRes)
 }

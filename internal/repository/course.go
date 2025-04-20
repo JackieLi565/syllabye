@@ -2,10 +2,11 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
-	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/service/database"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/util"
@@ -13,9 +14,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type CourseSchema struct {
+	Id          string
+	CategoryId  string
+	Title       string
+	Description sql.NullString
+	Uri         string
+	Course      string
+	DateAdded   time.Time
+}
+
+type CourseFilters struct {
+	Search     string
+	CategoryId string
+}
+
 type CourseRepository interface {
-	GetCourse(ctx context.Context, courseId string) (model.ICourse, error)
-	ListCourses(ctx context.Context, filters model.CourseFilters, paginate util.Paginate) ([]model.ICourse, error)
+	GetCourse(ctx context.Context, courseId string) (CourseSchema, error)
+	ListCourses(ctx context.Context, filters CourseFilters, paginate util.Paginate) ([]CourseSchema, error)
 }
 
 type pgCourseRepository struct {
@@ -30,8 +46,8 @@ func NewPgCourseRepository(db *database.PostgresDb, log logger.Logger) *pgCourse
 	}
 }
 
-func (c *pgCourseRepository) GetCourse(ctx context.Context, courseId string) (model.ICourse, error) {
-	var course model.ICourse
+func (c *pgCourseRepository) GetCourse(ctx context.Context, courseId string) (CourseSchema, error) {
+	var course CourseSchema
 
 	result, err := c.getCourseQuery(courseId)
 	if err != nil {
@@ -53,8 +69,8 @@ func (c *pgCourseRepository) GetCourse(ctx context.Context, courseId string) (mo
 	return course, nil
 }
 
-func (c *pgCourseRepository) ListCourses(ctx context.Context, filters model.CourseFilters, paginate util.Paginate) ([]model.ICourse, error) {
-	var courses []model.ICourse
+func (c *pgCourseRepository) ListCourses(ctx context.Context, filters CourseFilters, paginate util.Paginate) ([]CourseSchema, error) {
+	var courses []CourseSchema
 
 	result, err := c.listCoursesQuery(filters, paginate)
 	if err != nil {
@@ -71,7 +87,7 @@ func (c *pgCourseRepository) ListCourses(ctx context.Context, filters model.Cour
 	}
 
 	for rows.Next() {
-		course := model.ICourse{}
+		course := CourseSchema{}
 		err := rows.Scan(
 			&course.Id, &course.CategoryId, &course.Title, &course.Description, &course.Uri,
 			&course.Course, &course.DateAdded,
@@ -102,7 +118,7 @@ func (c *pgCourseRepository) getCourseQuery(courseId string) (util.SqlBuilderRes
 	return qb.Result(), nil
 }
 
-func (c *pgCourseRepository) listCoursesQuery(filters model.CourseFilters, paginate util.Paginate) (util.SqlBuilderResult, error) {
+func (c *pgCourseRepository) listCoursesQuery(filters CourseFilters, paginate util.Paginate) (util.SqlBuilderResult, error) {
 	qb := util.NewSqlBuilder(
 		"select id, category_id, title, description, uri, course, date_added",
 		"from courses",

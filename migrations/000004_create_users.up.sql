@@ -8,6 +8,7 @@ create table users
     gender        text check (gender in ('Male', 'Female', 'Other')),
     email         text      not null unique,
     bio           text,
+    ig_handle     text,
     picture       text,
     is_active     boolean   not null default false,
     date_added    timestamp not null default now(),

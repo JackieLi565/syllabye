@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
-	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/service/database"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/util"
@@ -13,10 +13,23 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ProgramSchema struct {
+	Id        string
+	FacultyId string
+	Name      string
+	Uri       string
+	DateAdded time.Time
+}
+
+type ProgramFilters struct {
+	FacultyId string
+	Name      string
+}
+
 type ProgramRepository interface {
-	GetProgram(ctx context.Context, programId string) (model.IProgram, error)
+	GetProgram(ctx context.Context, programId string) (ProgramSchema, error)
 	// Not need for pagination since dataset is very small
-	ListPrograms(ctx context.Context, filters model.ProgramFilters) ([]model.IProgram, error)
+	ListPrograms(ctx context.Context, filters ProgramFilters) ([]ProgramSchema, error)
 }
 
 type pgProgramRepository struct {
@@ -31,8 +44,8 @@ func NewPgProgramRepository(db *database.PostgresDb, log logger.Logger) *pgProgr
 	}
 }
 
-func (p *pgProgramRepository) GetProgram(ctx context.Context, programId string) (model.IProgram, error) {
-	var program model.IProgram
+func (p *pgProgramRepository) GetProgram(ctx context.Context, programId string) (ProgramSchema, error) {
+	var program ProgramSchema
 
 	res, err := p.getProgramQuery(programId)
 	if err != nil {
@@ -54,8 +67,8 @@ func (p *pgProgramRepository) GetProgram(ctx context.Context, programId string) 
 	return program, nil
 }
 
-func (p *pgProgramRepository) ListPrograms(ctx context.Context, filters model.ProgramFilters) ([]model.IProgram, error) {
-	var programs []model.IProgram
+func (p *pgProgramRepository) ListPrograms(ctx context.Context, filters ProgramFilters) ([]ProgramSchema, error) {
+	var programs []ProgramSchema
 
 	res, err := p.listProgramsQuery(filters)
 	if err != nil {
@@ -69,7 +82,7 @@ func (p *pgProgramRepository) ListPrograms(ctx context.Context, filters model.Pr
 	}
 
 	for rows.Next() {
-		program := model.IProgram{}
+		program := ProgramSchema{}
 		err := rows.Scan(&program.Id, &program.FacultyId, &program.Name, &program.Uri, &program.DateAdded)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -101,7 +114,7 @@ func (p *pgProgramRepository) getProgramQuery(programId string) (util.SqlBuilder
 	return qb.Result(), nil
 }
 
-func (p *pgProgramRepository) listProgramsQuery(filters model.ProgramFilters) (util.SqlBuilderResult, error) {
+func (p *pgProgramRepository) listProgramsQuery(filters ProgramFilters) (util.SqlBuilderResult, error) {
 	qb := util.NewSqlBuilder(
 		"select id, faculty_id, name, uri, date_added",
 		"from programs",

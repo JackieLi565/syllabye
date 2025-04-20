@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
-	"github.com/JackieLi565/syllabye/internal/model"
 	"github.com/JackieLi565/syllabye/internal/service/database"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/util"
@@ -12,10 +12,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type CourseCategorySchema struct {
+	Id        string
+	Name      string
+	DateAdded time.Time
+}
+
 type CourseCategoryRepository interface {
-	GetCourseCategory(ctx context.Context, categoryId string) (model.ICourseCategory, error)
+	GetCourseCategory(ctx context.Context, categoryId string) (CourseCategorySchema, error)
 	// Not need for pagination since dataset is very small
-	ListCourseCategories(ctx context.Context, nameFilter string) ([]model.ICourseCategory, error)
+	ListCourseCategories(ctx context.Context, nameFilter string) ([]CourseCategorySchema, error)
 }
 
 type pgCourseCategoryRepository struct {
@@ -30,8 +36,8 @@ func NewPgCourseCategoryRepository(db *database.PostgresDb, log logger.Logger) *
 	}
 }
 
-func (cc *pgCourseCategoryRepository) GetCourseCategory(ctx context.Context, categoryId string) (model.ICourseCategory, error) {
-	var category model.ICourseCategory
+func (cc *pgCourseCategoryRepository) GetCourseCategory(ctx context.Context, categoryId string) (CourseCategorySchema, error) {
+	var category CourseCategorySchema
 
 	result, err := cc.getCourseCategoryQuery(categoryId)
 	if err != nil {
@@ -55,8 +61,8 @@ func (cc *pgCourseCategoryRepository) GetCourseCategory(ctx context.Context, cat
 	return category, nil
 }
 
-func (cc *pgCourseCategoryRepository) ListCourseCategories(ctx context.Context, nameFilter string) ([]model.ICourseCategory, error) {
-	var categories []model.ICourseCategory
+func (cc *pgCourseCategoryRepository) ListCourseCategories(ctx context.Context, nameFilter string) ([]CourseCategorySchema, error) {
+	var categories []CourseCategorySchema
 
 	result := cc.listCourseCategoriesQuery(nameFilter)
 
@@ -71,7 +77,7 @@ func (cc *pgCourseCategoryRepository) ListCourseCategories(ctx context.Context, 
 	}
 
 	for rows.Next() {
-		category := model.ICourseCategory{}
+		category := CourseCategorySchema{}
 		err := rows.Scan(&category.Id, &category.Name, &category.DateAdded)
 		if err != nil {
 			cc.log.Error("scan category error", logger.Err(err))

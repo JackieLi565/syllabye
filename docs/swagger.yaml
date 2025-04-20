@@ -1,13 +1,21 @@
 basePath: /api
 definitions:
-  model.Course:
+  CourseCategoryResponse:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  CourseResponse:
     properties:
       categoryId:
         type: string
       course:
         type: string
-      description:
+      currentYear:
         type: string
+        x-nullable: true
       id:
         type: string
       title:
@@ -15,14 +23,7 @@ definitions:
       uri:
         type: string
     type: object
-  model.CourseCategory:
-    properties:
-      id:
-        type: string
-      name:
-        type: string
-    type: object
-  model.CreateSyllabus:
+  CreateSyllabusRequest:
     properties:
       checksum:
         type: string
@@ -38,8 +39,16 @@ definitions:
         type: string
       year:
         type: integer
+    required:
+    - checksum
+    - contentType
+    - courseId
+    - fileName
+    - fileSize
+    - semester
+    - year
     type: object
-  model.CreateUserCourse:
+  CreateUserCourseRequest:
     properties:
       courseId:
         type: string
@@ -47,15 +56,22 @@ definitions:
         type: string
       yearTaken:
         type: integer
+    required:
+    - courseId
     type: object
-  model.Faculty:
+  FacultyResponse:
     properties:
       id:
         type: string
       name:
         type: string
     type: object
-  model.Program:
+  NicknameExistsResponse:
+    properties:
+      exists:
+        type: boolean
+    type: object
+  ProgramResponse:
     properties:
       faculty:
         type: string
@@ -66,14 +82,30 @@ definitions:
       uri:
         type: string
     type: object
-  model.Session:
+  SessionResponse:
     properties:
       id:
         type: string
       userId:
         type: string
     type: object
-  model.Syllabus:
+  SyllabusReactionRequest:
+    properties:
+      action:
+        type: string
+    type: object
+  SyllabusReactionResponse:
+    properties:
+      dateReacted:
+        type: integer
+      dislike:
+        type: boolean
+      syllabusId:
+        type: string
+      userId:
+        type: string
+    type: object
+  SyllabusResponse:
     properties:
       contentType:
         type: string
@@ -96,83 +128,89 @@ definitions:
       year:
         type: integer
     type: object
-  model.SyllabusLike:
-    properties:
-      dateReacted:
-        type: integer
-      dislike:
-        type: boolean
-      syllabusId:
-        type: string
-      userId:
-        type: string
-    type: object
-  model.SyllabusReaction:
-    properties:
-      action:
-        type: string
-    type: object
-  model.UpdateSyllabus:
+  UpdateSyllabusRequest:
     properties:
       semester:
         type: string
+        x-nullable: true
       year:
         type: integer
+        x-nullable: true
     type: object
-  model.UpdateUser:
-    properties:
-      currentYear:
-        type: integer
-      gender:
-        type: string
-      nickname:
-        type: string
-      program:
-        type: string
-    type: object
-  model.UpdateUserCourse:
+  UpdateUserCourseRequest:
     properties:
       semesterTaken:
         type: string
+        x-nullable: true
       yearTaken:
         type: integer
+        x-nullable: true
     type: object
-  model.User:
+  UpdateUserRequest:
     properties:
+      bio:
+        type: string
+        x-nullable: true
       currentYear:
         type: integer
-      email:
-        type: string
-      fullname:
-        type: string
+        x-nullable: true
       gender:
         type: string
-      id:
+        x-nullable: true
+      instagram:
         type: string
+        x-nullable: true
       nickname:
         type: string
-      picture:
-        type: string
+        x-nullable: true
       programId:
         type: string
+        x-nullable: true
     type: object
-  model.UserCourse:
+  UserCourseResponse:
     properties:
       course:
         type: string
       courseId:
         type: string
       semesterTaken:
-        type: string
+        type: integer
+        x-nullable: true
       title:
         type: string
       yearTaken:
         type: integer
+        x-nullable: true
     type: object
-  model.UserNicknameExists:
+  UserResponse:
     properties:
-      exists:
-        type: boolean
+      bio:
+        type: string
+        x-nullable: true
+      currentYear:
+        type: string
+        x-nullable: true
+      email:
+        type: string
+      fullname:
+        type: string
+      gender:
+        type: string
+        x-nullable: true
+      id:
+        type: string
+      instagram:
+        type: string
+        x-nullable: true
+      nickname:
+        type: string
+        x-nullable: true
+      picture:
+        type: string
+        x-nullable: true
+      programId:
+        type: string
+        x-nullable: true
     type: object
 info:
   contact:
@@ -205,7 +243,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.Course'
+              $ref: '#/definitions/CourseResponse'
             type: array
         "500":
           description: Internal Server Error
@@ -228,7 +266,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/model.Course'
+            $ref: '#/definitions/CourseResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -250,7 +288,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.CourseCategory'
+              $ref: '#/definitions/CourseCategoryResponse'
             type: array
         "500":
           description: Internal Server Error
@@ -270,6 +308,10 @@ paths:
         required: true
         type: string
       responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/CourseCategoryResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -291,7 +333,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.Faculty'
+              $ref: '#/definitions/FacultyResponse'
             type: array
         "500":
           description: Internal Server Error
@@ -314,7 +356,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/model.Faculty'
+            $ref: '#/definitions/FacultyResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -342,7 +384,7 @@ paths:
         "200":
           description: Valid session
           schema:
-            $ref: '#/definitions/model.Session'
+            $ref: '#/definitions/SessionResponse'
         "401":
           description: Missing or invalid session cookie
           schema:
@@ -368,7 +410,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.Program'
+              $ref: '#/definitions/ProgramResponse'
             type: array
         "500":
           description: Internal Server Error
@@ -391,7 +433,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/model.Program'
+            $ref: '#/definitions/ProgramResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -454,7 +496,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.Syllabus'
+              $ref: '#/definitions/SyllabusResponse'
             type: array
         "400":
           description: Bad Request
@@ -478,7 +520,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/model.CreateSyllabus'
+          $ref: '#/definitions/CreateSyllabusRequest'
       responses:
         "201":
           description: Created
@@ -549,7 +591,7 @@ paths:
               description: Presigned URL to access the syllabus file
               type: string
           schema:
-            $ref: '#/definitions/model.Syllabus'
+            $ref: '#/definitions/SyllabusResponse'
         "400":
           description: Bad Request
           schema:
@@ -579,7 +621,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/model.UpdateSyllabus'
+          $ref: '#/definitions/UpdateSyllabusRequest'
       responses:
         "204":
           description: No Content
@@ -644,7 +686,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/model.SyllabusReaction'
+          $ref: '#/definitions/SyllabusReactionRequest'
       responses:
         "204":
           description: No Content
@@ -680,7 +722,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.SyllabusLike'
+              $ref: '#/definitions/SyllabusReactionResponse'
             type: array
         "400":
           description: Bad Request
@@ -707,7 +749,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/model.User'
+            $ref: '#/definitions/UserResponse'
         "400":
           description: Bad Request
           schema:
@@ -737,7 +779,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/model.UpdateUser'
+          $ref: '#/definitions/UpdateUserRequest'
       responses:
         "201":
           description: Created
@@ -797,7 +839,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.UserCourse'
+              $ref: '#/definitions/UserCourseResponse'
             type: array
         "500":
           description: Internal Server Error
@@ -820,7 +862,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/model.CreateUserCourse'
+          $ref: '#/definitions/CreateUserCourseRequest'
       responses:
         "201":
           description: Created
@@ -903,7 +945,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/model.UpdateUserCourse'
+          $ref: '#/definitions/UpdateUserCourseRequest'
       responses:
         "204":
           description: No Content
@@ -945,7 +987,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/model.UserNicknameExists'
+            $ref: '#/definitions/NicknameExistsResponse'
         "500":
           description: Internal Server Error
           schema:

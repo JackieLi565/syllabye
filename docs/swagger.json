@@ -53,7 +53,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Course"
+                                "$ref": "#/definitions/CourseResponse"
                             }
                         }
                     },
@@ -91,7 +91,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.CourseCategory"
+                                "$ref": "#/definitions/CourseCategoryResponse"
                             }
                         }
                     },
@@ -125,6 +125,12 @@
                     }
                 ],
                 "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CourseCategoryResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -158,7 +164,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Course"
+                            "$ref": "#/definitions/CourseResponse"
                         }
                     },
                     "500": {
@@ -195,7 +201,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Faculty"
+                                "$ref": "#/definitions/FacultyResponse"
                             }
                         }
                     },
@@ -232,7 +238,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Faculty"
+                            "$ref": "#/definitions/FacultyResponse"
                         }
                     },
                     "500": {
@@ -277,7 +283,7 @@
                     "200": {
                         "description": "Valid session",
                         "schema": {
-                            "$ref": "#/definitions/model.Session"
+                            "$ref": "#/definitions/SessionResponse"
                         }
                     },
                     "401": {
@@ -320,7 +326,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Program"
+                                "$ref": "#/definitions/ProgramResponse"
                             }
                         }
                     },
@@ -357,7 +363,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Program"
+                            "$ref": "#/definitions/ProgramResponse"
                         }
                     },
                     "500": {
@@ -455,7 +461,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Syllabus"
+                                "$ref": "#/definitions/SyllabusResponse"
                             }
                         }
                     },
@@ -493,7 +499,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.CreateSyllabus"
+                            "$ref": "#/definitions/CreateSyllabusRequest"
                         }
                     }
                 ],
@@ -553,7 +559,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Syllabus"
+                            "$ref": "#/definitions/SyllabusResponse"
                         },
                         "headers": {
                             "X-Presigned-Url": {
@@ -652,7 +658,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.UpdateSyllabus"
+                            "$ref": "#/definitions/UpdateSyllabusRequest"
                         }
                     }
                 ],
@@ -715,7 +721,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.SyllabusReaction"
+                            "$ref": "#/definitions/SyllabusReactionRequest"
                         }
                     }
                 ],
@@ -813,7 +819,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.SyllabusLike"
+                                "$ref": "#/definitions/SyllabusReactionResponse"
                             }
                         }
                     },
@@ -855,7 +861,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.UserNicknameExists"
+                            "$ref": "#/definitions/NicknameExistsResponse"
                         }
                     },
                     "500": {
@@ -891,7 +897,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.User"
+                            "$ref": "#/definitions/UserResponse"
                         }
                     },
                     "400": {
@@ -938,7 +944,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.UpdateUser"
+                            "$ref": "#/definitions/UpdateUserRequest"
                         }
                     }
                 ],
@@ -1032,7 +1038,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.UserCourse"
+                                "$ref": "#/definitions/UserCourseResponse"
                             }
                         }
                     },
@@ -1068,7 +1074,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.CreateUserCourse"
+                            "$ref": "#/definitions/CreateUserCourseRequest"
                         }
                     }
                 ],
@@ -1197,7 +1203,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.UpdateUserCourse"
+                            "$ref": "#/definitions/UpdateUserCourseRequest"
                         }
                     }
                 ],
@@ -1243,7 +1249,18 @@
         }
     },
     "definitions": {
-        "model.Course": {
+        "CourseCategoryResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "CourseResponse": {
             "type": "object",
             "properties": {
                 "categoryId": {
@@ -1252,8 +1269,9 @@
                 "course": {
                     "type": "string"
                 },
-                "description": {
-                    "type": "string"
+                "currentYear": {
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "id": {
                     "type": "string"
@@ -1266,19 +1284,17 @@
                 }
             }
         },
-        "model.CourseCategory": {
+        "CreateSyllabusRequest": {
             "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.CreateSyllabus": {
-            "type": "object",
+            "required": [
+                "checksum",
+                "contentType",
+                "courseId",
+                "fileName",
+                "fileSize",
+                "semester",
+                "year"
+            ],
             "properties": {
                 "checksum": {
                     "type": "string"
@@ -1303,8 +1319,11 @@
                 }
             }
         },
-        "model.CreateUserCourse": {
+        "CreateUserCourseRequest": {
             "type": "object",
+            "required": [
+                "courseId"
+            ],
             "properties": {
                 "courseId": {
                     "type": "string"
@@ -1317,7 +1336,7 @@
                 }
             }
         },
-        "model.Faculty": {
+        "FacultyResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -1328,7 +1347,15 @@
                 }
             }
         },
-        "model.Program": {
+        "NicknameExistsResponse": {
+            "type": "object",
+            "properties": {
+                "exists": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "ProgramResponse": {
             "type": "object",
             "properties": {
                 "faculty": {
@@ -1345,7 +1372,7 @@
                 }
             }
         },
-        "model.Session": {
+        "SessionResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -1356,7 +1383,32 @@
                 }
             }
         },
-        "model.Syllabus": {
+        "SyllabusReactionRequest": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                }
+            }
+        },
+        "SyllabusReactionResponse": {
+            "type": "object",
+            "properties": {
+                "dateReacted": {
+                    "type": "integer"
+                },
+                "dislike": {
+                    "type": "boolean"
+                },
+                "syllabusId": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "string"
+                }
+            }
+        },
+        "SyllabusResponse": {
             "type": "object",
             "properties": {
                 "contentType": {
@@ -1391,100 +1443,62 @@
                 }
             }
         },
-        "model.SyllabusLike": {
-            "type": "object",
-            "properties": {
-                "dateReacted": {
-                    "type": "integer"
-                },
-                "dislike": {
-                    "type": "boolean"
-                },
-                "syllabusId": {
-                    "type": "string"
-                },
-                "userId": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.SyllabusReaction": {
-            "type": "object",
-            "properties": {
-                "action": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.UpdateSyllabus": {
+        "UpdateSyllabusRequest": {
             "type": "object",
             "properties": {
                 "semester": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "year": {
-                    "type": "integer"
+                    "type": "integer",
+                    "x-nullable": true
                 }
             }
         },
-        "model.UpdateUser": {
-            "type": "object",
-            "properties": {
-                "currentYear": {
-                    "type": "integer"
-                },
-                "gender": {
-                    "type": "string"
-                },
-                "nickname": {
-                    "type": "string"
-                },
-                "program": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.UpdateUserCourse": {
+        "UpdateUserCourseRequest": {
             "type": "object",
             "properties": {
                 "semesterTaken": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "yearTaken": {
-                    "type": "integer"
+                    "type": "integer",
+                    "x-nullable": true
                 }
             }
         },
-        "model.User": {
+        "UpdateUserRequest": {
             "type": "object",
             "properties": {
+                "bio": {
+                    "type": "string",
+                    "x-nullable": true
+                },
                 "currentYear": {
-                    "type": "integer"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "fullname": {
-                    "type": "string"
+                    "type": "integer",
+                    "x-nullable": true
                 },
                 "gender": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
-                "id": {
-                    "type": "string"
+                "instagram": {
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "nickname": {
-                    "type": "string"
-                },
-                "picture": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 },
                 "programId": {
-                    "type": "string"
+                    "type": "string",
+                    "x-nullable": true
                 }
             }
         },
-        "model.UserCourse": {
+        "UserCourseResponse": {
             "type": "object",
             "properties": {
                 "course": {
@@ -1494,21 +1508,57 @@
                     "type": "string"
                 },
                 "semesterTaken": {
-                    "type": "string"
+                    "type": "integer",
+                    "x-nullable": true
                 },
                 "title": {
                     "type": "string"
                 },
                 "yearTaken": {
-                    "type": "integer"
+                    "type": "integer",
+                    "x-nullable": true
                 }
             }
         },
-        "model.UserNicknameExists": {
+        "UserResponse": {
             "type": "object",
             "properties": {
-                "exists": {
-                    "type": "boolean"
+                "bio": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "currentYear": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "email": {
+                    "type": "string"
+                },
+                "fullname": {
+                    "type": "string"
+                },
+                "gender": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "id": {
+                    "type": "string"
+                },
+                "instagram": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "nickname": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "picture": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "programId": {
+                    "type": "string",
+                    "x-nullable": true
                 }
             }
         }
