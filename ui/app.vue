@@ -11,7 +11,7 @@ useHead({
 
 <template>
   <Toaster />
-  <NuxtLoadingIndicator />
+  <NuxtLoadingIndicator color="#6f20d5"/>
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>

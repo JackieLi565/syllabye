@@ -10,9 +10,12 @@ const { session } = useAuth();
       <SyllabyeLogo size="small" :slogan="false" class=""/>
     </NuxtLink>
     <div class="flex items-center space-x-2 motion-preset-slide-left-md">
+      <div v-if="session" class="space-x-2 mr-2">
+        <NuxtLink to="/browse"><Button variant="ghost">Browse</Button></NuxtLink>
+        <NuxtLink to="/upload"><Button>Upload</Button></NuxtLink>
+      </div>
       <LoginButton v-if="!session"/>
       <ProfileDropdown v-else/>
-      <ThemeButton />
     </div>
   </nav>
 </template>

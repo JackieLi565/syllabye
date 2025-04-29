@@ -4,6 +4,7 @@
     <div class="flex items-center gap-2">
       <NuxtLink to="/tos" class="text-xs text-muted-foreground hover:text-primary ease duration-150">terms of service</NuxtLink>
       <NuxtLink to="/about" class="text-xs text-muted-foreground hover:text-primary ease duration-150">about</NuxtLink>
+      <ThemeButton />
     </div>
   </footer>
 </template>

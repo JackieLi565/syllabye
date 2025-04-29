@@ -9,7 +9,6 @@ export function usePrograms(params?: {
 
   if (params?.search) query.set('search', params.search)
   if (params?.faculty) query.set('category', params.faculty)
-
   const queryString = query.toString()
 
   const key = params?.programId

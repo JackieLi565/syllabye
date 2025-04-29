@@ -11,6 +11,8 @@ export interface User {
   nickname?: string
   picture: string
   programId?: string
+  instagram?: string
+  bio?: string
   newuser: boolean
 }
 
@@ -19,4 +21,17 @@ export interface Program {
   id: string
   name: string
   uri: string
+}
+
+export interface Syllabus {
+  contentType: string
+  courseId: string
+  dateAdded: number
+  fileName: string
+  fileSize: number
+  id?: string
+  received: boolean
+  semester: string
+  userId: string
+  year: number
 }

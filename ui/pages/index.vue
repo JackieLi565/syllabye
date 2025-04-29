@@ -1,7 +1,6 @@
 <script setup lang="ts">
 const { session } = useAuth()
 const route = useRoute()
-const router = useRouter()
 const { openLoginModal } = useLoginModal()
 
 onMounted(() => {
@@ -34,5 +33,6 @@ function handleProtectedClick() {
         <CourseCard @click="handleProtectedClick"/>
       </div>
     </div>
+    <RedditEmbeds/>
   </div>
 </template>

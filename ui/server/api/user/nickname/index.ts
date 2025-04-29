@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
         cookie: cookie || "",
       },
     });
+    console.log(`nickname being searched: ${search}`, response)
     return response ?? null
   } catch (error) {
       console.warn("Nickname search failed in API route:", error);

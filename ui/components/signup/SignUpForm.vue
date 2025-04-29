@@ -6,7 +6,6 @@ import * as z from 'zod'
 import { Button } from '@/components/ui/button'
 import {
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -31,7 +30,7 @@ const { isValid, checkUsername } = useCheckUsername()
 const formSchema = toTypedSchema(z.object({
   nickname: usernameSchema,
   gender: z.string(),
-  program: z.string(),
+  programId: z.string(),
   currentYear: z.number().min(1).max(8),
 }))
 
@@ -82,9 +81,9 @@ const onSubmit = handleSubmit(async (formValues) => {
       toast({
         title: 'Welcome to Syllabye!',
         description: 'Your profile has been created.',
+        duration: 1500
       })
-      loading.value = false
-      reloadNuxtApp()
+      setInterval(reloadNuxtApp, 1500)
     } else if (status.value === 'pending') {
       loading.value = true
     } else {
@@ -100,8 +99,6 @@ const onSubmit = handleSubmit(async (formValues) => {
       title: 'Something went wrong in our server',
       description: 'Please try again later'
     })
-  } finally {
-    loading.value = false;
   }
 })
 </script>
@@ -114,8 +111,13 @@ const onSubmit = handleSubmit(async (formValues) => {
       @escape-key-down="(event) => event.preventDefault()"
     >
       <DialogHeader class="-space-y-2">
-        <h1 class="text-lg">Hey there, first time user!</h1>
-        <p class="text-muted-foreground font-light text-sm">Enter your details to continue</p>
+        <template v-if="loading">
+          <h1 class="text-lg">Loading...</h1>
+        </template>
+        <template v-else>
+          <h1 class="text-lg">Hey there, first time user!</h1>
+          <p class="text-muted-foreground font-light text-sm">Enter your details to continue</p>
+        </template>
       </DialogHeader>
       <Separator class="h-[0.5px]"/>
       
@@ -231,7 +233,7 @@ const onSubmit = handleSubmit(async (formValues) => {
                         :key="program.value"
                         :value="program"
                         @select="() => {
-                          setFieldValue('program', program.value)
+                          setFieldValue('programId', program.value)
                         }"
                       >
                         {{ program.label }}
