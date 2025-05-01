@@ -68,7 +68,7 @@ module "thumbnail_bucket" {
 
 module "webhook_queue" {
   source        = "./modules/sqs"
-  function_name = module.thumbnail_lambda.function_name
+  function_name = module.webhook_lambda.function_name
 }
 
 module "emailer" {

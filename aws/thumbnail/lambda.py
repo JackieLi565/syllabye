@@ -49,4 +49,4 @@ def handler(event, _):
         )
         print(f"syllabus thumbnail created: {key}")
     except Exception as e:
-        print(f"error processing record: {e}")
+        print(f"error processing record: {e}\n with event: {event}")

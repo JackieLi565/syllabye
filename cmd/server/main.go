@@ -66,13 +66,13 @@ func main() {
 
 	// Handlers
 	utilHandler := handler.NewUtilHandler()
-	authHandler := handler.NewAuthHandler(log, pgUserRepo, pgSessionRepo, googleOpenId, jwt)
+	authHandler := handler.NewAuthHandler(log, pgUserRepo, pgSessionRepo, googleOpenId, jwt, sesEmailer)
 	programHandler := handler.NewProgramHandler(log, pgProgramRepo)
 	facultyHandler := handler.NewFacultyHandler(log, pgFacultyRepo)
 	courseCategoryHandler := handler.NewCourseCategoryHandler(log, pgCourseCategoryRepo)
 	courseHandler := handler.NewCourseHandler(log, pgCourseRepo)
 	userHandler := handler.NewUserHandler(log, pgUserRepo)
-	syllabusHandler := handler.NewSyllabusHandler(log, pgSyllabusRepo, s3Presigner, jwt, webhookQueue)
+	syllabusHandler := handler.NewSyllabusHandler(log, pgSyllabusRepo, s3Presigner, jwt, webhookQueue, sesEmailer)
 
 	r := chi.NewRouter()
 	r.Use(utilHandler.RequestIdMiddleware)
@@ -188,12 +188,6 @@ func main() {
 				})
 			})
 		})
-	})
-
-	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
-		sesEmailer.SendSubmissionMissingEmail(r.Context(), "li.jackie565@gmail.com", "Jackie Li", "COE")
-		w.WriteHeader(200)
-		w.Write([]byte("OK"))
 	})
 
 	http.ListenAndServe(os.Getenv("PORT"), r)

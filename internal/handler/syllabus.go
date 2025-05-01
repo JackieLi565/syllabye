@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"github.com/JackieLi565/syllabye/internal/repository"
 	"github.com/JackieLi565/syllabye/internal/service/authorizer"
 	"github.com/JackieLi565/syllabye/internal/service/bucket"
+	"github.com/JackieLi565/syllabye/internal/service/emailer"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/service/queue"
 	"github.com/JackieLi565/syllabye/internal/util"
@@ -24,15 +26,17 @@ type syllabusHandler struct {
 	presigner    bucket.PresignerClient
 	jwt          *authorizer.JwtAuthorizer
 	queue        queue.WebhookQueue
+	emailer      emailer.NoReplyEmailer
 }
 
-func NewSyllabusHandler(log logger.Logger, syllabus repository.SyllabusRepository, presigner bucket.PresignerClient, jwt *authorizer.JwtAuthorizer, queue queue.WebhookQueue) *syllabusHandler {
+func NewSyllabusHandler(log logger.Logger, syllabus repository.SyllabusRepository, presigner bucket.PresignerClient, jwt *authorizer.JwtAuthorizer, queue queue.WebhookQueue, emailer emailer.NoReplyEmailer) *syllabusHandler {
 	return &syllabusHandler{
 		log:          log,
 		syllabusRepo: syllabus,
 		presigner:    presigner,
 		jwt:          jwt,
 		queue:        queue,
+		emailer:      emailer,
 	}
 }
 
@@ -163,6 +167,13 @@ func (s *syllabusHandler) CreateSyllabus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	var delaySeconds int32
+	if os.Getenv(config.ENV) == "development" {
+		delaySeconds = 10
+	} else {
+		delaySeconds = 60 * 5 // 5 minutes
+	}
+
 	// Clean up syllabus API
 	token, err := s.jwt.EncodeJwt(nil)
 	if err != nil {
@@ -175,7 +186,7 @@ func (s *syllabusHandler) CreateSyllabus(w http.ResponseWriter, r *http.Request)
 		Headers: map[string]string{
 			"Authorization": "Bearer " + token,
 		},
-	}, 15)
+	}, delaySeconds)
 
 	w.Header().Add("X-Presigned-Url", signedUrl)
 	w.Header().Set("Location", os.Getenv(config.ServerDomain)+"/syllabi/"+syllabusId)
@@ -467,13 +478,22 @@ func (s *syllabusHandler) SyncSyllabus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_, meta, err := s.syllabusRepo.VerifySyllabus(r.Context(), syllabusId)
+	if err != nil {
+		http.Error(w, "An internal error occurred.", http.StatusInternalServerError)
+		return
+	}
+
+	s.emailer.SendSubmissionMissingEmail(r.Context(), meta.UserEmail, meta.UserName, meta.Course)
+
+	s.log.Info(fmt.Sprintf("syllabus %s synced", syllabusId))
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // VerifySyllabus check if a syllabus has been synchronized.
 func (s *syllabusHandler) VerifySyllabus(w http.ResponseWriter, r *http.Request) {
 	syllabusId := chi.URLParam(r, "syllabusId")
-	isVerified, err := s.syllabusRepo.VerifySyllabus(r.Context(), syllabusId)
+	isVerified, meta, err := s.syllabusRepo.VerifySyllabus(r.Context(), syllabusId)
 	if err != nil {
 		if errors.Is(err, util.ErrNotFound) {
 			http.Error(w, "Syllabus not found.", http.StatusNotFound)
@@ -483,12 +503,12 @@ func (s *syllabusHandler) VerifySyllabus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
-
-	// TODO: Send email to user
 	if !isVerified {
-		s.log.Info("Syllabus was not received")
+		s.log.Info(fmt.Sprintf("syllabus %s not verified", syllabusId))
+		s.emailer.SendSubmissionMissingEmail(r.Context(), meta.UserEmail, meta.UserName, meta.Course)
 	} else {
-		s.log.Info("Syllabus was received")
+		s.log.Info(fmt.Sprintf("syllabus %s verified", syllabusId))
 	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

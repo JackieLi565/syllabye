@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -13,13 +14,12 @@ import (
 	"github.com/JackieLi565/syllabye/internal/config"
 	"github.com/JackieLi565/syllabye/internal/repository"
 	"github.com/JackieLi565/syllabye/internal/service/authorizer"
+	"github.com/JackieLi565/syllabye/internal/service/emailer"
 	"github.com/JackieLi565/syllabye/internal/service/logger"
 	"github.com/JackieLi565/syllabye/internal/service/openid"
 	"github.com/JackieLi565/syllabye/internal/util"
 	"github.com/golang-jwt/jwt/v5"
 )
-
-const defaultRedirectUri = "/"
 
 type authHandler struct {
 	log            logger.Logger
@@ -27,15 +27,17 @@ type authHandler struct {
 	userRepo       repository.UserRepository
 	sessionRepo    repository.SessionRepository
 	jwt            *authorizer.JwtAuthorizer
+	emailer        emailer.NoReplyEmailer
 }
 
-func NewAuthHandler(log logger.Logger, user repository.UserRepository, session repository.SessionRepository, openId openid.OpenIdProvider, jwt *authorizer.JwtAuthorizer) *authHandler {
+func NewAuthHandler(log logger.Logger, user repository.UserRepository, session repository.SessionRepository, openId openid.OpenIdProvider, jwt *authorizer.JwtAuthorizer, emailer emailer.NoReplyEmailer) *authHandler {
 	return &authHandler{
 		log:            log,
 		openIdProvider: openId,
 		userRepo:       user,
 		sessionRepo:    session,
 		jwt:            jwt,
+		emailer:        emailer,
 	}
 }
 
@@ -109,12 +111,29 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Login or Register the user
-	userId, err := ah.userRepo.LoginOrRegisterUser(r.Context(), standardClaims)
+	newUserFlag := false
+	userId, err := ah.userRepo.GetUserIdByEmail(r.Context(), standardClaims.Email)
 	if err != nil {
-		ah.log.Error("failed to login or register user", logger.Err(err))
-		http.Error(w, "Unable to login or register user.", http.StatusInternalServerError)
-		return
+		if errors.Is(err, util.ErrNotFound) {
+			// Register user if not found.
+			newUserId, err := ah.userRepo.RegisterUser(r.Context(), standardClaims)
+			if err != nil {
+				if errors.Is(err, util.ErrConflict) {
+					// User already exists
+					http.Redirect(w, r, ah.getDefaultRedirectUrl(), http.StatusFound)
+					return
+				}
+
+				http.Error(w, "Unable to register user", http.StatusInternalServerError)
+				return
+			}
+
+			userId = newUserId
+			newUserFlag = true
+		} else {
+			http.Error(w, "Unable to register user", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	sessionId, err := ah.sessionRepo.CreateSession(r.Context(), userId) // create session log in database
@@ -136,7 +155,6 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 	}
 
 	sessionExp := time.Now().Add(time.Hour * 24 * 30)
-
 	http.SetCookie(w, &http.Cookie{
 		Name:     config.SessionCookie,
 		Value:    sessionToken,
@@ -146,10 +164,16 @@ func (ah *authHandler) ProviderCallback(w http.ResponseWriter, r *http.Request) 
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	})
+
+	if newUserFlag {
+		// No need to do anything if email fails to send (logs will catch)
+		ah.emailer.SendWelcomeEmail(r.Context(), standardClaims.Email, standardClaims.Name)
+	}
+
 	if stateClaims.Redirect != "" {
 		http.Redirect(w, r, stateClaims.Redirect, http.StatusFound)
 	} else {
-		http.Redirect(w, r, os.Getenv(config.ClientDomain)+defaultRedirectUri, http.StatusFound)
+		http.Redirect(w, r, ah.getDefaultRedirectUrl(), http.StatusFound)
 	}
 
 	ah.log.Info(fmt.Sprintf("user %s has logged in with session token %s", userId, sessionToken))
@@ -172,7 +196,7 @@ func (ah *authHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	http.Redirect(w, r, os.Getenv(config.ClientDomain)+defaultRedirectUri, http.StatusFound)
+	http.Redirect(w, r, ah.getDefaultRedirectUrl(), http.StatusFound)
 	ah.log.Info("a user has logged out")
 }
 
@@ -265,9 +289,13 @@ func (ah *authHandler) decodeSessionToken(tokenString string) (SessionPayload, e
 	return session, nil
 }
 
+func (ah *authHandler) getDefaultRedirectUrl() string {
+	return os.Getenv(config.ClientDomain) + "/"
+}
+
 // getValidRedirectUrl retrieves a valid redirect url, otherwise a default url is provided.
 func (ah *authHandler) getValidRedirectUrl(redirectUrl string, host string) string {
-	defaultUrl := os.Getenv(config.ClientDomain) + defaultRedirectUri
+	defaultUrl := ah.getDefaultRedirectUrl()
 	if redirectUrl == "" {
 		return defaultUrl
 	}
@@ -295,13 +323,33 @@ func (ah *authHandler) DevAuthorization(w http.ResponseWriter, r *http.Request) 
 
 	redirectUrl := ah.getValidRedirectUrl(r.URL.Query().Get("redirect"), r.Host)
 
-	userId, err := ah.userRepo.LoginOrRegisterUser(r.Context(), openid.StandardClaims{
+	fakeClaims := openid.StandardClaims{
 		Name:  "System Admin (Development)",
 		Email: "sys.admin@syllabye.ca",
-	})
+	}
+
+	newUserFlag := false
+
+	userId, err := ah.userRepo.GetUserIdByEmail(r.Context(), fakeClaims.Email)
 	if err != nil {
-		http.Error(w, "Dev authorization failed.", http.StatusInternalServerError)
-		return
+		if errors.Is(err, util.ErrNotFound) {
+			newUserId, err := ah.userRepo.RegisterUser(r.Context(), fakeClaims)
+			if err != nil {
+				if errors.Is(err, util.ErrConflict) {
+					http.Redirect(w, r, ah.getDefaultRedirectUrl(), http.StatusFound)
+					return
+				}
+
+				http.Error(w, "Dev authorization setup failed.", http.StatusInternalServerError)
+				return
+			}
+
+			userId = newUserId
+			newUserFlag = true
+		} else {
+			http.Error(w, "Dev authorization failed.", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	sessionToken, err := ah.jwt.EncodeJwt(jwt.MapClaims{
@@ -323,6 +371,10 @@ func (ah *authHandler) DevAuthorization(w http.ResponseWriter, r *http.Request) 
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteNoneMode,
+	}
+
+	if newUserFlag {
+		ah.emailer.SendWelcomeEmail(r.Context(), fakeClaims.Email, fakeClaims.Name)
 	}
 
 	http.SetCookie(w, cookie)

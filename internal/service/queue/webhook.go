@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/JackieLi565/syllabye/internal/config"
@@ -49,7 +50,7 @@ func (s *sqsWebhook) SendMessage(ctx context.Context, message WebhookMessage, de
 		return util.ErrMalformed
 	}
 
-	_, err = s.client.SendMessage(ctx, &sqs.SendMessageInput{
+	res, err := s.client.SendMessage(ctx, &sqs.SendMessageInput{
 		DelaySeconds: delay,
 		MessageBody:  aws.String(string(messageBody)),
 		QueueUrl:     aws.String(s.url),
@@ -58,6 +59,8 @@ func (s *sqsWebhook) SendMessage(ctx context.Context, message WebhookMessage, de
 		s.log.Error("failed to create webhook queue message")
 		return err
 	}
+
+	s.log.Info(fmt.Sprintf("hook queued for %s with message id %s", message.Url, *res.MessageId))
 
 	return nil
 }

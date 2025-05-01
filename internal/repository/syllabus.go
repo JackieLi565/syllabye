@@ -59,6 +59,14 @@ type SyllabusLikeSchema struct {
 	DateAdded  time.Time
 }
 
+type SyllabusMeta struct {
+	Id        string
+	Course    string
+	UserId    string
+	UserName  string
+	UserEmail string
+}
+
 type SyllabusRepository interface {
 	GetAndViewSyllabus(ctx context.Context, userId string, syllabusId string) (SyllabusSchema, error)
 	CreateSyllabus(ctx context.Context, syllabus InsertSyllabus) (string, error)
@@ -67,8 +75,7 @@ type SyllabusRepository interface {
 	UpdateSyllabus(ctx context.Context, userId string, syllabusId string, syllabus UpdateSyllabus) error
 	// SyncSyllabus updates a syllabus with a valid date_synced value.
 	SyncSyllabus(ctx context.Context, syllabusId string) error
-	// VerifySyllabus verifies if a syllabus has a valid sync date, otherwise the syllabus will be removed with a return value of false.
-	VerifySyllabus(ctx context.Context, syllabusId string) (bool, error)
+	VerifySyllabus(ctx context.Context, syllabusId string) (bool, SyllabusMeta, error)
 	ListSyllabusLikes(ctx context.Context, syllabusId string) ([]SyllabusLikeSchema, error)
 	LikeSyllabus(ctx context.Context, userId string, syllabusId string, dislike bool) error
 	DeleteSyllabusLike(ctx context.Context, userId string, syllabusId string) error
@@ -556,60 +563,74 @@ func (s *pgSyllabusRepository) validateSyllabusId(syllabusId string) (pgtype.UUI
 	return syllabusUuid, nil
 }
 
-func (s *pgSyllabusRepository) VerifySyllabus(ctx context.Context, syllabusId string) (bool, error) {
+func (s *pgSyllabusRepository) VerifySyllabus(ctx context.Context, syllabusId string) (bool, SyllabusMeta, error) {
 	tx, err := s.db.Pool.Begin(ctx)
 	if err != nil {
 		s.log.Error("failed to begin verify syllabus transaction", logger.Err(err))
-		return false, util.ErrInternal
+		return false, SyllabusMeta{}, util.ErrInternal
 	}
 	defer tx.Rollback(ctx)
 
-	getResult, err := s.getDateSyncedSyllabusQuery(syllabusId)
+	getResult, err := s.getSyllabusMetaQuery(syllabusId)
 	if err != nil {
-		return false, err
+		return false, SyllabusMeta{}, err
 	}
 
 	var dateSynced sql.NullTime
-	err = tx.QueryRow(ctx, getResult.Query, getResult.Args...).Scan(&dateSynced)
+	meta := SyllabusMeta{}
+	err = tx.QueryRow(ctx, getResult.Query, getResult.Args...).Scan(
+		&meta.Id,
+		&dateSynced,
+		&meta.UserId,
+		&meta.UserName,
+		&meta.UserEmail,
+		&meta.Course,
+	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			s.log.Error("attempt to verify a syllabus that no longer exists")
-			return false, util.ErrNotFound
+			return false, SyllabusMeta{}, util.ErrNotFound
 		}
 
 		s.log.Error("un-handled verify syllabus query error", logger.Err(err))
-		return false, util.ErrInternal
+		return false, SyllabusMeta{}, util.ErrInternal
 	}
 
+	isVerified := true
 	// Delete syllabus as it was not uploaded within a given time span
-	isVerified := true // Assume the syllabus is verified unless removed
 	if !dateSynced.Valid {
 		deleteResult, _ := s.deleteSyllabusQuery(syllabusId)
 		_, err = tx.Exec(ctx, deleteResult.Query, deleteResult.Args...)
 		if err != nil {
 			s.log.Error("un-handled delete syllabus query error", logger.Err(err))
-			return isVerified, util.ErrInternal
+			return false, SyllabusMeta{}, util.ErrInternal
 		}
 
+		s.log.Info(fmt.Sprintf("syllabus %s removed", syllabusId))
 		isVerified = false
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		s.log.Error("failed to commit verify syllabus transaction", logger.Err(err))
-		return false, util.ErrInternal
+		return false, SyllabusMeta{}, util.ErrInternal
 	}
 
-	return isVerified, nil
+	return isVerified, meta, nil
 }
 
-func (s *pgSyllabusRepository) getDateSyncedSyllabusQuery(syllabusId string) (util.SqlBuilderResult, error) {
+func (s *pgSyllabusRepository) getSyllabusMetaQuery(syllabusId string) (util.SqlBuilderResult, error) {
 	syllabusUuid, err := database.ParsePgUuid(syllabusId)
 	if err != nil {
 		return util.SqlBuilderResult{}, err
 	}
 
-	qb := util.NewSqlBuilder("select date_synced from syllabi")
-	qb.Concat("where id = $%d", syllabusUuid)
+	qb := util.NewSqlBuilder(
+		"select s.id, s.date_synced, u.id as user_id, u.full_name, u.email, c.course",
+		"from syllabi s",
+		"inner join users u on u.id = s.user_id",
+		"inner join courses c on c.id = s.course_id",
+	)
+	qb.Concat("where s.id = $%d", syllabusUuid)
 
 	return qb.Result(), nil
 }

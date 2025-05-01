@@ -67,7 +67,8 @@ type UpdateUserCourse struct {
 
 type UserRepository interface {
 	GetUser(ctx context.Context, userId string) (UserSchema, error)
-	LoginOrRegisterUser(ctx context.Context, openId openid.StandardClaims) (string, error)
+	GetUserIdByEmail(ctx context.Context, email string) (string, error)
+	RegisterUser(ctx context.Context, openId openid.StandardClaims) (string, error)
 	UpdateUser(ctx context.Context, userId string, entity UpdateUser) error
 	SearchUserNickname(ctx context.Context, nickname string) (bool, error)
 
@@ -129,11 +130,26 @@ func (u *pgUserRepository) getUserQuery(userId string) (util.SqlBuilderResult, e
 	return qb.Result(), nil
 }
 
-func (u *pgUserRepository) getUserByEmailQuery(email string) util.SqlBuilderResult {
-	qb := util.NewSqlBuilder(
-		"select id",
-		"from users",
-	)
+func (u *pgUserRepository) GetUserIdByEmail(ctx context.Context, email string) (string, error) {
+	res := u.getUserIdByEmailQuery(email)
+
+	var userId string
+	err := u.db.Pool.QueryRow(ctx, res.Query, res.Args...).Scan(&userId)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			u.log.Info(fmt.Sprintf("user with email %s does not exist", email))
+			return "", util.ErrNotFound
+		}
+
+		u.log.Error("unknown get user id via email error", logger.Err(err))
+		return "", util.ErrInternal
+	}
+
+	return userId, nil
+}
+
+func (u *pgUserRepository) getUserIdByEmailQuery(email string) util.SqlBuilderResult {
+	qb := util.NewSqlBuilder("select id from users")
 	qb = qb.Concat("where lower(email) = $%d", strings.ToLower(email))
 
 	return qb.Result()
@@ -241,53 +257,27 @@ func (u *pgUserRepository) updateUserQuery(userId string, entity UpdateUser) (ut
 	return qb.Result(), nil
 }
 
-func (u *pgUserRepository) LoginOrRegisterUser(ctx context.Context, openId openid.StandardClaims) (string, error) {
+func (u *pgUserRepository) RegisterUser(ctx context.Context, openId openid.StandardClaims) (string, error) {
 	var userId string
 
-	tx, err := u.db.Pool.Begin(ctx)
+	res := u.registerUserQuery(openId)
+
+	err := u.db.Pool.QueryRow(ctx, res.Query, res.Args...).Scan(&userId)
 	if err != nil {
-		u.log.Error("failed to begin transaction", logger.Err(err))
-		return "", util.ErrInternal
-	}
-	defer tx.Rollback(ctx)
+		var pgErr *pgconn.PgError
 
-	res := u.getUserByEmailQuery(openId.Email)
-
-	err = tx.QueryRow(ctx, res.Query, res.Args...).Scan(
-		&userId,
-	)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			res := u.registerUserQuery(openId)
-
-			err := tx.QueryRow(ctx, res.Query, res.Args...).Scan(&userId)
-			if err != nil {
-				var pgErr *pgconn.PgError
-
-				if errors.As(err, &pgErr) {
-					if pgErr.Code == database.PgConflictErrCode {
-						u.log.Error("user create conflict error - user already exists?", logger.Err(err))
-						return "", util.ErrConflict
-					}
-				}
-
-				u.log.Error("insert user query failed", logger.Err(err))
-				return "", util.ErrInternal
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == database.PgConflictErrCode {
+				u.log.Error("user create conflict error - user already exists?", logger.Err(err))
+				return "", util.ErrConflict
 			}
-
-			u.log.Info(fmt.Sprintf("user registered with id %s", userId))
-		} else {
-			u.log.Error("user query failed", logger.Err(err))
-			return "", util.ErrInternal
 		}
-	} else {
-		// TODO: update user if open id parameters change
-	}
 
-	if err := tx.Commit(ctx); err != nil {
-		u.log.Error("failed to commit transaction", logger.Err(err))
+		u.log.Error("insert user query failed", logger.Err(err))
 		return "", util.ErrInternal
 	}
+
+	u.log.Info(fmt.Sprintf("user registered with id %s", userId))
 
 	return userId, nil
 }
