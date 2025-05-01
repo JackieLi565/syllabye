@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# deploy_lambda.sh build and packages lambda functions.
+# deploy_lambda.sh builds and packages lambda a function.
 
 set -e
 

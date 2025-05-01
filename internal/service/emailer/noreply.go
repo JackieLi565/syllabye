@@ -2,6 +2,7 @@ package emailer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -15,6 +16,8 @@ import (
 
 type NoReplyEmailer interface {
 	SendWelcomeEmail(ctx context.Context, to string, name string) error
+	SendSubmissionSuccessEmail(ctx context.Context, to string, name string, course string) error
+	SendSubmissionMissingEmail(ctx context.Context, to string, name string, course string) error
 }
 
 type sesNoReply struct {
@@ -37,34 +40,67 @@ func NewSesNoReply(log logger.Logger, client *ses.Client) *sesNoReply {
 }
 
 func (s *sesNoReply) SendWelcomeEmail(ctx context.Context, to string, name string) error {
-	template := s.welcomeEmailTemplate(name)
+	welcomeTemplate := os.Getenv(config.AWS_SES_WELCOME_TEMPLATE)
+	if welcomeTemplate == "" {
+		s.log.Error("Welcome template name not defined")
+		return util.ErrInternal
+	}
 
-	_, err := s.client.SendEmail(ctx, &ses.SendEmailInput{
+	templateData := map[string]interface{}{
+		"name": name,
+	}
+
+	return s.sendEmail(ctx, to, welcomeTemplate, templateData)
+}
+
+func (s *sesNoReply) SendSubmissionSuccessEmail(ctx context.Context, to string, name string, course string) error {
+	uploadSuccessTemplate := os.Getenv(config.AWS_SES_UPLOAD_SUCCESS_TEMPLATE)
+	if uploadSuccessTemplate == "" {
+		s.log.Error("Upload Success template name not defined")
+		return util.ErrInternal
+	}
+
+	templateData := map[string]interface{}{
+		"name":   name,
+		"course": course,
+	}
+
+	return s.sendEmail(ctx, to, uploadSuccessTemplate, templateData)
+}
+
+func (s *sesNoReply) SendSubmissionMissingEmail(ctx context.Context, to string, name string, course string) error {
+	uploadErrorTemplate := os.Getenv(config.AWS_SES_UPLOAD_ERROR_TEMPLATE)
+	if uploadErrorTemplate == "" {
+		s.log.Error("Upload Error template name not defined")
+		return util.ErrInternal
+	}
+
+	templateData := map[string]interface{}{
+		"name":   name,
+		"course": course,
+		"reason": "We did not receive your upload file",
+	}
+
+	return s.sendEmail(ctx, to, uploadErrorTemplate, templateData)
+}
+
+func (s *sesNoReply) sendEmail(ctx context.Context, to string, template string, templateData map[string]interface{}) error {
+	dat, _ := json.Marshal(templateData)
+
+	res, err := s.client.SendTemplatedEmail(ctx, &ses.SendTemplatedEmailInput{
 		Source: s.from,
 		Destination: &types.Destination{
 			ToAddresses: []string{to},
 		},
-		// TODO: Move to AWS email templates https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_CreateEmailTemplate.html
-		Message: &types.Message{
-			Subject: &types.Content{
-				Data: aws.String("Welcome to Syllabye"),
-			},
-			Body: &types.Body{
-				Text: &types.Content{
-					Data: aws.String(template),
-				},
-			},
-		},
+		Template:     aws.String(template),
+		TemplateData: aws.String(string(dat)),
 	})
 	if err != nil {
 		s.log.Error(fmt.Sprintf("failed to send welcome email to %s", to), logger.Err(err))
-
 		return util.ErrInternal
 	}
 
-	return nil
-}
+	s.log.Info(fmt.Sprintf("email template %s sent to %s with message id %s", template, to, *res.MessageId))
 
-func (s *sesNoReply) welcomeEmailTemplate(name string) string {
-	return fmt.Sprintf("Hello %s\n\n Welcome to Syllabye", name)
+	return err
 }

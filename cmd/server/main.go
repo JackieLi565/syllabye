@@ -191,7 +191,7 @@ func main() {
 	})
 
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
-		sesEmailer.SendWelcomeEmail(r.Context(), "li.jackie565@gmail.com", "Jackie Li")
+		sesEmailer.SendSubmissionMissingEmail(r.Context(), "li.jackie565@gmail.com", "Jackie Li", "COE")
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	})

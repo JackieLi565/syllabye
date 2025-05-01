@@ -31,12 +31,6 @@ data "archive_file" "zip_python_lambda" {
   output_path = local.python_lambda_zip
 }
 
-# Dev Service Only
-resource "aws_ses_domain_identity" "this" {
-  count  = local.is_dev ? 1 : 0
-  domain = var.domain
-}
-
 module "syllabus_lambda" {
   source   = "./modules/lambda/syllabus"
   filename = local.python_lambda_zip
@@ -75,4 +69,13 @@ module "thumbnail_bucket" {
 module "webhook_queue" {
   source        = "./modules/sqs"
   function_name = module.thumbnail_lambda.function_name
+}
+
+module "emailer" {
+  source                       = "./modules/ses"
+  is_dev                       = local.is_dev
+  domain                       = var.domain
+  welcome_template_name        = var.welcome_template_name
+  upload_success_template_name = var.upload_success_template_name
+  upload_error_template_name   = var.upload_error_template_name
 }
