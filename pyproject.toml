@@ -2,14 +2,15 @@
 name = "syllabye"
 version = "0.1.0"
 description = "Scripts to scrape course related metadata"
-authors = ["Jackie Li li.jackie565@gmail.com"]
+authors = ["Jackie Li <li.jackie565@gmail.com>"]
+package-mode = false
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
 requests = "^2.32.3"
 bs4 = "^0.0.2"
-psycopg2 = "^2.9.10"
+psycopg2-binary = "^2.9.10"
 dotenv = "^0.9.9"
 
 

@@ -3,7 +3,7 @@ import { debounce } from 'lodash'
 import { z } from 'zod'
 
 interface CheckUsernameResponse {
-  exists: boolean
+  Exists: boolean
 }
 
 export const usernameSchema = z
@@ -13,14 +13,14 @@ export const usernameSchema = z
   .regex(/^[a-z0-9._-]{3,30}$/, 'Username can only contain lowercase letters, numbers, periods, underscores, and dashes')
 
 export function useCheckUsername() {
+  const { user } = useAuth()
   const isValid = ref<{
-    valid: boolean,
-    zod: boolean,
+    valid: boolean, // true if no duplicate username in database
+    zod: boolean, // true if zod validation is being used
     message: string
   } | null>(null)
 
-  const checkUsername = debounce(async (username: string) => {
-    // checking validity with zod
+  const _checkUsername = async (username: string) => {
     const validation = usernameSchema.safeParse(username)
 
     if (!validation.success) {
@@ -29,13 +29,22 @@ export function useCheckUsername() {
         zod: true,
         message: 'Username is invalid'
       }
-      return
+      return isValid.value
     }
 
-    // check database if zod is valid
+    if (username === user.value?.nickname) {
+      isValid.value = {
+        valid: true,
+        zod: false,
+        message: 'This is your current username'
+      }
+      return isValid.value
+    }
+
     try {
       const response = await useFetch<CheckUsernameResponse>(`/api/user/nickname?search=${username}`)
-      if (response.data.value?.exists) {
+
+      if (response.data.value?.Exists) {
         isValid.value = {
           valid: false,
           zod: false,
@@ -55,9 +64,14 @@ export function useCheckUsername() {
         message: 'Something went wrong, please try again later'
       }
     }
-    return
-  }, 700)
+
+    return isValid.value
+  }
+
+  const checkUsername = debounce(_checkUsername, 700)
+
   return {
-    isValid, checkUsername
+    isValid,
+    checkUsername
   }
 }

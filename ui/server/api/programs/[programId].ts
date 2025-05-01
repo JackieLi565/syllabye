@@ -8,12 +8,12 @@ export default defineEventHandler(async (event) => {
   const cookie = getRequestHeader(event, "cookie");
 
   try {
-    const programs = await $fetch<Program[] | null>(apiUrl, {
+    const program = await $fetch<Program | null>(apiUrl, {
       headers: {
         cookie: cookie || "",
       },
     });
-    return programs ?? null
+    return program ?? null
   } catch (error) {
       console.warn(`Program ${programId} fetch failed in API route:`, error);
       return null;

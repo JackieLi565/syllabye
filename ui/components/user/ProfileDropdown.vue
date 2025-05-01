@@ -21,7 +21,7 @@ const getInitial = () => user?.value?.fullname?.[0]?.toUpperCase() || '?'
 <template>
   <DropdownMenu>
     <DropdownMenuTrigger>
-      <div class="w-8 h-8 rounded-full overflow-hidden border border-border bg-primary flex items-center justify-center text-white text-sm font-medium">
+      <div class="w-8 h-8 rounded-full overflow-hidden border border-border bg-muted-foreground flex items-center justify-center text-white text-sm font-medium">
         <img
           v-if="user?.picture"
           :src="user.picture"

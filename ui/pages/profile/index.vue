@@ -14,7 +14,7 @@ useHead({
 </script>
 
 <template>
-  <div class="md:py-8 motion-preset-slide-up-sm">
+  <div class="md:py-8">
     <ProfileCard />
   </div>
 </template>
