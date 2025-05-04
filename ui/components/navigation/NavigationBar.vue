@@ -12,7 +12,7 @@ const { session } = useAuth();
     <div class="flex items-center space-x-2 motion-preset-slide-left-md">
       <div v-if="session" class="space-x-2 mr-2">
         <NuxtLink to="/browse"><Button variant="ghost">Browse</Button></NuxtLink>
-        <NuxtLink to="/upload"><Button>Upload</Button></NuxtLink>
+        <NuxtLink to="/upload"><Button class="font-semibold">Upload</Button></NuxtLink>
       </div>
       <LoginButton v-if="!session"/>
       <ProfileDropdown v-else/>

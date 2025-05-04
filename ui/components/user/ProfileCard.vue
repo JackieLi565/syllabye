@@ -14,7 +14,7 @@ const { syllabi, syllabiStatus } = useSyllabi({ userId: user.value?.id })
 </script>
 
 <template>
-  <main class="space-y-6">
+  <main class="space-y-6 motion-preset-slide-up-sm">
     <div class="border-b md:border border-border w-full md:w-3/5 xl:w-2/5 m-auto md:rounded-xl overflow-hidden">
       <div class="h-36 bg-gradient-to-r from-primary to-indigo-800"></div>
       <div class="pb-8">
@@ -66,14 +66,18 @@ const { syllabi, syllabiStatus } = useSyllabi({ userId: user.value?.id })
       <p class="text-muted-foreground text-sm">View syllabi you have uploaded</p>
       <div v-if="syllabi?.length === 0" class="flex flex-col justify-center items-center space-y-3 h-48">
         <div class="flex flex-col items-center">
-          <Icon icon="lucide:file-text" width="36" height="36" class="text-muted-foreground"/>
+          <div class="rounded-full bg-primary-alternative p-3 mb-3">
+            <Icon icon="lucide:file-text" width="36" height="36" class="text-primary"/>
+          </div>
           <h1 class="flex space-x-1 items-center font-medium">Wow, such empty</h1>
           <h1 class="flex space-x-1 items-center text-sm text-muted-foreground">No syllabi to see here...yet</h1>
         </div>
-        <Button>
-          <Icon icon="lucide:plus"/>
-          <span>Upload a syllabus</span>
-        </Button>
+        <NuxtLink to="/upload">
+          <Button>
+            <Icon icon="lucide:plus"/>
+            <span>Upload a syllabus</span>
+          </Button>
+        </NuxtLink>
       </div>
       <template v-else-if="syllabiStatus === 'idle'">
         <SkeletonPage :rows="3" class="py-4"></SkeletonPage>

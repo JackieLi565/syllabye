@@ -35,3 +35,22 @@ export interface Syllabus {
   userId: string
   year: number
 }
+
+export interface SyllabusUploadData {
+  checksum: string
+  contentType: string
+  courseId: string
+  fileName: string
+  fileSize: number
+  semester: string
+  year: number
+}
+
+export interface Course {
+  categoryId: string
+  course: string
+  currentYear: string
+  id?: string
+  title: string
+  uri: string
+}

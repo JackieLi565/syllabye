@@ -1,35 +1,49 @@
+import type { Course } from "~/types/types"
+
 export function useCourses(params?: {
   search?: string
   category?: string
   page?: number
   size?: number
+  courseId?: string
 }) {
-  const config = useRuntimeConfig()
   const query = new URLSearchParams()
 
   if (params?.search) query.set('search', params.search)
   if (params?.category) query.set('category', params.category)
-  if (params?.page) query.set('page', String(params.page))
-  if (params?.size) query.set('size', String(params.size))
+  if (params?.page) query.set('page', params.page.toString())
+  if (params?.size) query.set('size', params.size.toString())
+  if (params?.courseId) query.set('courseId', params.courseId)
 
   const queryString = query.toString()
-  // const endpoint = `${config.public.apiUrl}/courses${queryString ? ``}`
 
-  const { data: courses, status: coursesStatus, error: coursesError } = useAsyncData(
-    'courses',
-    () => $fetch(`${config.public.apiUrl}/courses`),
+  const key = params?.courseId
+    ? `courses-${params.courseId}`
+    : `courses-${queryString}`
+
+  const { data: course, status: courseStatus, error: courseError } = useAsyncData(
+    key,
+    async () => {
+      if (params?.courseId) {
+        return await $fetch<Course>(`/api/courses/${params.courseId}`)
+      }
+      return null
+    },
     {
       server: true,
-      default: () => [],
     }
   )
 
-  const { data: categories, status: categoriesStatus, error: categoriesError } = useAsyncData(
-    'course-categories',
-    () => $fetch(`${config.public.apiUrl}/courses/categories`),
+  const { data: courses, status: coursesStatus, error: coursesError } = useAsyncData(
+    key,
+    async () => {
+      if (!params?.courseId) {
+        return await $fetch<Course[]>(`/api/courses/courses${queryString ? `?${queryString}` : ''}`)
+      }
+      return []
+    },
     {
       server: true,
-      default: () => [],
     }
   )
 
@@ -37,8 +51,8 @@ export function useCourses(params?: {
     courses,
     coursesStatus,
     coursesError,
-    categories,
-    categoriesStatus,
-    categoriesError,
+    course,
+    courseStatus,
+    courseError,
   }
 }

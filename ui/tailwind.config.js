@@ -5,13 +5,12 @@ export default {
     content: [],
   theme: {
     fontFamily: {
-      sans: ['"Inter"', 'sans-serif'],
+      sans: ['"Switzer"', 'sans-serif'],
     },
   	extend: {
       fontFamily: {
         inter: ['Inter'],
         display: ['Dela Gothic One'],
-        title: ['Geist'],
       },
   		borderRadius: {
   			lg: 'var(--radius)',
@@ -31,7 +30,8 @@ export default {
   			},
   			primary: {
   				DEFAULT: 'hsl(var(--primary))',
-  				foreground: 'hsl(var(--primary-foreground))'
+  				foreground: 'hsl(var(--primary-foreground))',
+					alternative: 'hsl(var(--primary-alternative))'
   			},
   			secondary: {
   				DEFAULT: 'hsl(var(--secondary))',
@@ -49,6 +49,7 @@ export default {
   				DEFAULT: 'hsl(var(--destructive))',
   				foreground: 'hsl(var(--destructive-foreground))'
   			},
+				success: 'hsl(var(--success))',
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
@@ -63,4 +64,9 @@ export default {
   	}
   },
   plugins: [require("tailwindcss-animate"), require("tailwindcss-motion")],
+	safelist: [
+    {
+      pattern: /motion-delay-\[\d+ms\]/,
+    },
+  ],
 }
