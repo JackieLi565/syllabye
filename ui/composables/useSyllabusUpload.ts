@@ -20,12 +20,12 @@ export const useSyllabusUpload = () => {
         }
       })
 
-      if (!response.success) {
-        return {
-          success: false,
-          errorText: response.errorText,
-        }
-      }
+      // if (!response.success) {
+      //   return {
+      //     success: false,
+      //     errorText: response.errorText,
+      //   }
+      // }
 
       const { presignedUrl } = response.data
 

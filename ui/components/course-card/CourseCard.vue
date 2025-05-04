@@ -14,7 +14,7 @@ import {
       <CardDescription>Faculty of Science</CardDescription>
     </CardHeader>
     <CardContent>
-      <img src="https://website-assets.studocu.com/img/document_thumbnails/c9897540c69aa46aad2a0d6f8eaa82ec/thumb_1200_1553.png"/>
+      <img src="http://s3.localhost.localstack.cloud:4565/thumbnails/d453360b-d911-4643-8e2c-fc1f39d66650.jpg" width="500"/>
     </CardContent>
   </Card>
 </template>

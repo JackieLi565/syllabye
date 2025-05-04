@@ -35,12 +35,10 @@ export default defineEventHandler(async (event) => {
 
     const presignedUrl = response.headers.get('X-Presigned-Url') ?? '';
     const location = response.headers.get('Location') ?? '';
-    const body = await response.text();
 
     return {
       success: true,
       data: {
-        body,
         location,
         presignedUrl,
       },
