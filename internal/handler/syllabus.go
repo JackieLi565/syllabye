@@ -474,13 +474,19 @@ func (s *syllabusHandler) SyncSyllabus(w http.ResponseWriter, r *http.Request) {
 	syllabusId := chi.URLParam(r, "syllabusId")
 	err := s.syllabusRepo.SyncSyllabus(r.Context(), syllabusId)
 	if err != nil {
-		http.Error(w, "An internal error occurred.", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	_, meta, err := s.syllabusRepo.VerifySyllabus(r.Context(), syllabusId)
 	if err != nil {
-		http.Error(w, "An internal error occurred.", http.StatusInternalServerError)
+		if errors.Is(err, util.ErrNotFound) {
+			w.WriteHeader(http.StatusNoContent)
+		} else if errors.Is(err, util.ErrMalformed) {
+			w.WriteHeader(http.StatusBadRequest)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -496,9 +502,11 @@ func (s *syllabusHandler) VerifySyllabus(w http.ResponseWriter, r *http.Request)
 	isVerified, meta, err := s.syllabusRepo.VerifySyllabus(r.Context(), syllabusId)
 	if err != nil {
 		if errors.Is(err, util.ErrNotFound) {
-			http.Error(w, "Syllabus not found.", http.StatusNotFound)
+			w.WriteHeader(http.StatusNoContent)
+		} else if errors.Is(err, util.ErrMalformed) {
+			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			http.Error(w, "An internal error occurred.", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 		return
 	}

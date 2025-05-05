@@ -28,7 +28,7 @@ type CourseRes struct {
 	Id          string                    `json:"id"`
 	CategoryId  string                    `json:"categoryId"`
 	Title       string                    `json:"title"`
-	Description nullable.Nullable[string] `json:"currentYear" swaggertype:"primitive,string" extensions:"x-nullable"`
+	Description nullable.Nullable[string] `json:"description" swaggertype:"primitive,string" extensions:"x-nullable"`
 	Uri         string                    `json:"uri"`
 	Course      string                    `json:"course"`
 } //@name CourseResponse

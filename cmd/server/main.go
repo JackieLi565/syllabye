@@ -76,6 +76,12 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(utilHandler.RequestIdMiddleware)
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log.Info(r.URL.String())
+			next.ServeHTTP(w, r)
+		})
+	})
 
 	basePath := "/"
 	if env == "development" {

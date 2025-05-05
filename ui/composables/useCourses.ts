@@ -1,44 +1,56 @@
-export function useCourses(params?: {
-  search?: string
-  category?: string
-  page?: number
-  size?: number
-}) {
-  const config = useRuntimeConfig()
-  const query = new URLSearchParams()
+import type { Course } from "~/types/types";
 
-  if (params?.search) query.set('search', params.search)
-  if (params?.category) query.set('category', params.category)
-  if (params?.page) query.set('page', String(params.page))
-  if (params?.size) query.set('size', String(params.size))
+interface Options {
+  server: boolean;
+  query?: {
+    search?: string;
+    category?: string;
+    page?: string;
+    size?: string;
+  };
+}
 
-  const queryString = query.toString()
-  // const endpoint = `${config.public.apiUrl}/courses${queryString ? ``}`
+export const useCourses = (options: Options) => {
+  const config = useRuntimeConfig();
+  const cookie = useCookie(config.public.sessionKey);
 
-  const { data: courses, status: coursesStatus, error: coursesError } = useAsyncData(
-    'courses',
-    () => $fetch(`${config.public.apiUrl}/courses`),
+  const query = new URLSearchParams();
+  if (options.query)
+    Object.entries(options.query)
+      .filter(([_, value]) => value)
+      .forEach(([key, value]) => query.set(key, value));
+
+  const {
+    data: courses,
+    status,
+    error,
+    refresh,
+  } = useAsyncData(
+    "courses",
+    () => {
+      return $fetch<Course[]>(
+        `${config.public.apiUrl}/courses?${query && query.toString()}`,
+        {
+          headers: {
+            Cookie:
+              options.server && cookie.value
+                ? `${config.public.sessionKey}=${cookie.value}`
+                : "",
+          },
+          credentials: "include",
+        }
+      );
+    },
     {
-      server: true,
+      server: options.server,
       default: () => [],
     }
-  )
-
-  const { data: categories, status: categoriesStatus, error: categoriesError } = useAsyncData(
-    'course-categories',
-    () => $fetch(`${config.public.apiUrl}/courses/categories`),
-    {
-      server: true,
-      default: () => [],
-    }
-  )
+  );
 
   return {
     courses,
-    coursesStatus,
-    coursesError,
-    categories,
-    categoriesStatus,
-    categoriesError,
-  }
-}
+    status,
+    error,
+    refresh,
+  };
+};

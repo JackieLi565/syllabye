@@ -1,5 +1,7 @@
+<script setup lang="ts">
+import CourseGrid from "~/components/course/CourseGrid.vue";
+</script>
+
 <template>
-  <div>
-    browse here
-  </div>
+  <CourseGrid />
 </template>

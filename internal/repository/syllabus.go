@@ -588,7 +588,7 @@ func (s *pgSyllabusRepository) VerifySyllabus(ctx context.Context, syllabusId st
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			s.log.Error("attempt to verify a syllabus that no longer exists")
+			s.log.Info(fmt.Sprintf("syllabus %s not longer exists", syllabusId))
 			return false, SyllabusMeta{}, util.ErrNotFound
 		}
 

@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import ProfileCard from '~/components/user/ProfileCard.vue'
+import ProfileCard from "~/components/user/ProfileCard.vue";
 
 definePageMeta({
-  middleware: 'auth'
-})
-const { user } = useAuth()
+  middleware: "auth",
+});
+const { user } = useAuth();
 useHead({
   title: `${user.value?.nickname} | Profile`,
   meta: [
-    { name: "Syllabye", content: 'Say goodbye to searching for syllabi!' }
+    { name: "Syllabye", content: "Say goodbye to searching for syllabi!" },
   ],
-})
+});
 </script>
 
 <template>
