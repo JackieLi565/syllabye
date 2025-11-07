@@ -51,3 +51,13 @@ export interface Course {
   title: string;
   uri: string;
 }
+
+export interface SyllabusUploadData {
+  checksum: string;
+  contentType: string;
+  courseId: string;
+  fileName: string;
+  fileSize: number;
+  semester: string;
+  year: number;
+}

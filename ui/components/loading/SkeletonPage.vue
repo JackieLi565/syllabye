@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { Skeleton } from '@/components/ui/skeleton'
-import { ref, onMounted } from 'vue'
 
 const props = defineProps<{
   rows: number
@@ -10,7 +9,7 @@ const props = defineProps<{
 
 <template>
   <div class="flex flex-col space-y-5">
-    <Skeleton class="h-10 w-full rounded-xl" />
+    <Skeleton class="h-[105px] w-full rounded-xl" />
     <div class="space-y-3.5">
       <Skeleton
         v-for="row in rows"

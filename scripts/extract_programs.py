@@ -5,7 +5,7 @@ This script scrapes Toronto Metropolitan University's academic calendar to extra
 program related data. The scraped data is saved as a JSON file.
 
 Usage:
-    python program_scraper.py
+    python extract_programs.py
 
 Arguments:
     year (optional): The academic year range to scrape (e.g., "2024-2025").

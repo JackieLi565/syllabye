@@ -16,7 +16,7 @@ services:
       start_period: 30s
       timeout: 10s
     volumes:
-      - syllabye_postgres_data:/var/lib/postgresql/data
+      - "${POSTGRES_VOLUME:-./.postgres}:/var/lib/postgresql"
 
   localstack:
     container_name: "${SYLLABYE_LOCALSTACK:-syllabye_localstack}"

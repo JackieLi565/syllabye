@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MainSearchBar from "~/components/search/MainSearchBar.vue";
 const { session } = useAuth();
 const route = useRoute();
 const { openLoginModal } = useLoginModal();
@@ -33,7 +34,7 @@ function handleProtectedClick() {
         Because searching for a course syllabus on Reddit shouldn't be a thing
       </p>
     </div>
-    <SearchBar @click="handleProtectedClick" />
+    <MainSearchBar @click="handleProtectedClick" />
     <div class="w-full md:w-1/2 mt-20 space-y-4">
       <h1 class="font-semibold md:text-xl">Popular syllabi</h1>
       <div class="w-full flex flex-col md:flex-row gap-2">

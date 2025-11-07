@@ -43,9 +43,8 @@ export function useSyllabi(params?: {
       if (!params?.syllabusId) {
         const data = await $fetch<Syllabus[]>(`/api/syllabi/syllabi?${queryString}`)
         return data
-      } else {
-        return []
       }
+      return []
     },
     {
       server: false,

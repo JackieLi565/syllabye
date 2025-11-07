@@ -86,7 +86,7 @@ watch(isDialogOpen, (open) => {
     const freshValues = values
     originalValues.value = { ...freshValues }
     resetForm({ values: freshValues })
-    isValid.value = null // reset custom validation state if needed
+    isValid.value = null
   }
 })
 
@@ -104,6 +104,10 @@ const onSubmit = handleSubmit(async () => {
   try {
     const changedValues = getChangedValues()
     
+    if (changedValues.instagram && typeof changedValues.instagram === 'string') {
+      changedValues.instagram = changedValues.instagram.toLowerCase()
+    }
+
     if (Object.keys(changedValues).length === 0) {
       toast({
         title: 'No changes made',
@@ -184,6 +188,7 @@ const onSubmit = handleSubmit(async () => {
                 <FormMessage />
               </FormItem>
             </FormField>
+            
             <div class="flex items-center gap-x-2">
               <FormField v-slot="{ componentField }" name="gender">
                 <FormItem class="w-1/2">

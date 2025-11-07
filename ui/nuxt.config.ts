@@ -27,7 +27,7 @@ export default defineNuxtConfig({
     families: [
       { name: "Dela Gothic One", provider: "google" },
       { name: "Inter", provider: "google" },
-      { name: "Geist", provider: "google" },
+      { name: "Switzer", provider: "fontshare" },
     ],
   },
   shadcn: {
